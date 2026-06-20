@@ -1,0 +1,20 @@
+# DevEco / HarmonyOS build
+.hvigor/
+build/
+entry/build/
+entry/.preview/
+oh_modules/
+
+# IDE
+.idea/
+*.iml
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local config
+local.properties
