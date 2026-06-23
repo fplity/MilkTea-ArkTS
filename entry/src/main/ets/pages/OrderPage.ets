@@ -43,6 +43,24 @@ interface PaidOrderInfo {
   createTime: string
 }
 
+interface OrderParams {
+  orderType?: string
+  selectedStoreId?: number
+  deliveryAddress?: string
+  deliveryStoreId?: number
+}
+
+interface StoreInfo {
+  id: number
+  name: string
+  address: string
+  distance: number
+  latitude: number
+  longitude: number
+  openTime: string
+  phone: string
+}
+
 const productList: ProductInfo[] = [
   { id: 1, name: '珍珠奶茶', category: '奶茶', price: 18, image: $r('app.media.product1'), desc: '经典奶茶，香浓顺滑' },
   { id: 2, name: '鲜果百香绿茶', category: '果茶', price: 20, image: $r('app.media.product2'), desc: '百香果香，绿茶清爽' },
@@ -72,6 +90,39 @@ const productList: ProductInfo[] = [
   { id: 26, name: '杨枝甘露', category: '果茶', price: 20, image: $r('app.media.product26'), desc: '芒果清甜，椰香浓郁' }
 ]
 
+const storeList: StoreInfo[] = [
+  {
+    id: 1,
+    name: '星野奶茶 松山湖校区店',
+    address: '广东科技学院松山湖校区南门附近',
+    distance: 0.8,
+    latitude: 22.9021,
+    longitude: 113.8806,
+    openTime: '09:00-22:00',
+    phone: '18800010001'
+  },
+  {
+    id: 2,
+    name: '星野奶茶 大岭山店',
+    address: '东莞市大岭山镇教育路88号',
+    distance: 2.4,
+    latitude: 22.9125,
+    longitude: 113.8632,
+    openTime: '10:00-22:30',
+    phone: '18800010002'
+  },
+  {
+    id: 3,
+    name: '星野奶茶 松湖万科店',
+    address: '东莞松山湖万科生活广场一楼',
+    distance: 4.6,
+    latitude: 22.9288,
+    longitude: 113.8915,
+    openTime: '09:30-23:00',
+    phone: '18800010003'
+  }
+]
+
 @Entry
 @Component
 struct OrderPage {
@@ -84,6 +135,10 @@ struct OrderPage {
   @StorageLink('selectedCouponLimit') selectedCouponLimit: number = 0
 
   @StorageLink('paidOrders') paidOrders: PaidOrderInfo[] = []
+  @StorageLink('orderType') orderType: string = '自取'
+  @StorageLink('selectedStoreId') selectedStoreId: number = 1
+  @StorageLink('deliveryAddress') deliveryAddress: string = ''
+  @StorageLink('deliveryStoreId') deliveryStoreId: number = 1
 
   @State remark: string = ''
   @State takeWay: string = '到店自取'
@@ -91,6 +146,7 @@ struct OrderPage {
   @State orderNo: string = 'MT20260608'
 
   aboutToAppear(): void {
+    this.syncOrderParams()
     this.refreshOrderMoney()
     this.orderNo = 'MT' + Date.now().toString()
   }
@@ -109,6 +165,82 @@ struct OrderPage {
     router.pushUrl({
       url: 'pages/CouponPage'
     })
+  }
+
+  private syncOrderParams(): void {
+    const params = router.getParams() as OrderParams
+
+    if (params !== undefined && params.orderType !== undefined) {
+      this.orderType = params.orderType
+    }
+
+    if (params !== undefined && params.selectedStoreId !== undefined) {
+      this.selectedStoreId = Number(params.selectedStoreId)
+    }
+
+    if (params !== undefined && params.deliveryAddress !== undefined) {
+      this.deliveryAddress = params.deliveryAddress
+    }
+
+    if (params !== undefined && params.deliveryStoreId !== undefined) {
+      this.deliveryStoreId = Number(params.deliveryStoreId)
+    }
+
+    if (this.orderType === '外卖') {
+      this.takeWay = '外卖配送'
+    } else {
+      this.takeWay = '到店自取'
+    }
+  }
+
+  private getStoreById(id: number): StoreInfo | undefined {
+    return storeList.find((item: StoreInfo) => item.id === id)
+  }
+
+  private getSelectedStore(): StoreInfo {
+    const store = this.getStoreById(this.selectedStoreId)
+    if (store !== undefined) {
+      return store
+    }
+
+    return storeList[0]
+  }
+
+  private getDeliveryStore(): StoreInfo {
+    const store = this.getStoreById(this.deliveryStoreId)
+    if (store !== undefined) {
+      return store
+    }
+
+    return storeList[0]
+  }
+
+  private getCurrentTakeWayText(): string {
+    if (this.orderType === '外卖') {
+      return '外卖配送'
+    }
+
+    return '到店自取'
+  }
+
+  private getReceiveMainText(): string {
+    if (this.orderType === '外卖') {
+      if (this.deliveryAddress.trim().length > 0) {
+        return this.deliveryAddress
+      }
+
+      return '未填写配送地址'
+    }
+
+    return this.getSelectedStore().name
+  }
+
+  private getReceiveSubText(): string {
+    if (this.orderType === '外卖') {
+      return '由 ' + this.getDeliveryStore().name + ' 配送，预计距离 ' + this.getDeliveryStore().distance.toString() + 'km'
+    }
+
+    return this.getSelectedStore().address
   }
 
   private getProductById(id: number): ProductInfo | undefined {
@@ -227,9 +359,22 @@ struct OrderPage {
   }
 
   private submitOrder(): void {
+    if (this.orderType === '外卖') {
+      this.takeWay = '外卖配送'
+    } else {
+      this.takeWay = '到店自取'
+    }
+
     if (this.cartCount === 0) {
       promptAction.showToast({
         message: '请先选择商品'
+      })
+      return
+    }
+
+    if (this.orderType === '外卖' && this.deliveryAddress.trim().length === 0) {
+      promptAction.showToast({
+        message: '请先填写配送地址'
       })
       return
     }
@@ -470,17 +615,81 @@ struct OrderPage {
   @Builder
   TakeWayCard() {
     Column() {
-      Text('取餐方式')
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#2E2118')
-
       Row() {
-        this.TakeWayItem('到店自取', '预计 10-15 分钟完成制作')
-        this.TakeWayItem('外卖配送', '配送到宿舍 / 教室附近')
+        Text('取餐信息')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2E2118')
+          .layoutWeight(1)
+
+        Text(this.getCurrentTakeWayText())
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor('#8B5E3C')
+          .borderRadius(16)
       }
       .width('100%')
+
+      Row() {
+        Stack({ alignContent: Alignment.Center }) {
+          Text(this.orderType === '外卖' ? '🚚' : '🏬')
+            .fontSize(24)
+        }
+        .width(52)
+        .height(52)
+        .borderRadius(26)
+        .backgroundColor('#F6E5D2')
+
+        Column() {
+          Text(this.getReceiveMainText())
+            .fontSize(17)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#2E2118')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(this.getReceiveSubText())
+            .fontSize(12)
+            .fontColor('#9A7B60')
+            .margin({ top: 6 })
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .margin({ left: 12 })
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .padding(14)
       .margin({ top: 14 })
+      .backgroundColor('#F8F4EF')
+      .borderRadius(22)
+
+      if (this.orderType === '自取') {
+        this.ReceiveInfoRow('营业时间', this.getSelectedStore().openTime)
+        this.ReceiveInfoRow('门店电话', this.getSelectedStore().phone)
+        this.ReceiveInfoRow('距离门店', this.getSelectedStore().distance.toString() + 'km')
+      } else {
+        this.ReceiveInfoRow('配送地址', this.deliveryAddress.trim().length > 0 ? this.deliveryAddress : '未填写配送地址')
+        this.ReceiveInfoRow('配送门店', this.getDeliveryStore().name)
+        this.ReceiveInfoRow('门店地址', this.getDeliveryStore().address)
+        this.ReceiveInfoRow('预计距离', this.getDeliveryStore().distance.toString() + 'km')
+      }
+
+      Text('如需修改，请返回菜单页重新选择')
+        .fontSize(12)
+        .fontColor('#8B5E3C')
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 8, bottom: 8 })
+        .margin({ top: 12 })
+        .backgroundColor('#F6E5D2')
+        .borderRadius(16)
+        .onClick(() => {
+          this.goMenu()
+        })
     }
     .width('100%')
     .padding(18)
@@ -493,6 +702,26 @@ struct OrderPage {
       offsetX: 0,
       offsetY: 5
     })
+  }
+
+  @Builder
+  ReceiveInfoRow(label: string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(13)
+        .fontColor('#9A7B60')
+        .width(72)
+
+      Text(value)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#2E2118')
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .margin({ top: 10 })
   }
 
   @Builder

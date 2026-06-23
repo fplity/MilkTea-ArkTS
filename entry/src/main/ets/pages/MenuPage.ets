@@ -39,6 +39,18 @@ interface CartProductInfo {
   sugar: string
 }
 
+interface StoreInfo {
+  id: number
+  name: string
+  address: string
+  distance: number
+  latitude: number
+  longitude: number
+  openTime: string
+  phone: string
+  mapImage: Resource
+}
+
 const categoryList: CategoryInfo[] = [
   { id: 1, name: '奶茶' },
   { id: 2, name: '咖啡' },
@@ -75,12 +87,50 @@ const productList: ProductInfo[] = [
   { id: 26, name: '杨枝甘露', category: '果茶', price: 20, image: $r('app.media.product26'), desc: '芒果清甜，椰香浓郁' }
 ]
 
+const storeList: StoreInfo[] = [
+  {
+    id: 1,
+    name: '星野奶茶 松山湖校区店',
+    address: '广东科技学院松山湖校区南门附近',
+    distance: 0.8,
+    latitude: 22.9021,
+    longitude: 113.8806,
+    openTime: '09:00-22:00',
+    phone: '18800010001',
+    mapImage: $r('app.media.map_store1')
+  },
+  {
+    id: 2,
+    name: '星野奶茶 大岭山店',
+    address: '东莞市大岭山镇教育路88号',
+    distance: 2.4,
+    latitude: 22.9125,
+    longitude: 113.8632,
+    openTime: '10:00-22:30',
+    phone: '18800010002',
+    mapImage: $r('app.media.map_store2')
+  },
+  {
+    id: 3,
+    name: '星野奶茶 松湖万科店',
+    address: '东莞松山湖万科生活广场一楼',
+    distance: 4.6,
+    latitude: 22.9288,
+    longitude: 113.8915,
+    openTime: '09:30-23:00',
+    phone: '18800010003',
+    mapImage: $r('app.media.map_store3')
+  }
+]
+
 @Entry
 @Component
 struct MenuPage {
   @State currentCategory: string = '奶茶'
   @State showCartSheet: boolean = false
   @State showSpecSheet: boolean = false
+  @State showStoreSheet: boolean = false
+  @State orderPanelCollapsed: boolean = false
   @State selectedProductId: number = 1
   @State selectedCount: number = 1
   @State selectedTemperature: string = '正常冰'
@@ -89,6 +139,11 @@ struct MenuPage {
   @StorageLink('cartCount') cartCount: number = 0
   @StorageLink('cartTotal') cartTotal: number = 0
   @StorageLink('cartItems') cartItems: CartItemInfo[] = []
+
+  @StorageLink('orderType') orderType: string = '自取'
+  @StorageLink('selectedStoreId') selectedStoreId: number = 1
+  @StorageLink('deliveryAddress') deliveryAddress: string = ''
+  @StorageLink('deliveryStoreId') deliveryStoreId: number = 1
 
   private temperatureList: string[] = ['正常冰', '少冰', '去冰', '常温', '热']
   private sugarList: string[] = ['正常糖', '七分糖', '五分糖', '三分糖', '无糖']
@@ -117,6 +172,7 @@ struct MenuPage {
       }
     }
 
+    this.deliveryStoreId = this.getNearestStore().id
     this.refreshCartMoney()
   }
 
@@ -136,6 +192,70 @@ struct MenuPage {
     return productList[0]
   }
 
+  private getStoreById(id: number): StoreInfo | undefined {
+    return storeList.find((item: StoreInfo) => item.id === id)
+  }
+
+  private getSelectedStore(): StoreInfo {
+    const store = this.getStoreById(this.selectedStoreId)
+    if (store !== undefined) {
+      return store
+    }
+    return storeList[0]
+  }
+
+  private getDeliveryStore(): StoreInfo {
+    const store = this.getStoreById(this.deliveryStoreId)
+    if (store !== undefined) {
+      return store
+    }
+    return this.getNearestStore()
+  }
+
+  private getNearestStore(): StoreInfo {
+    let nearestStore: StoreInfo = storeList[0]
+
+    storeList.forEach((item: StoreInfo) => {
+      if (item.distance < nearestStore.distance) {
+        nearestStore = item
+      }
+    })
+
+    return nearestStore
+  }
+
+  private getCompactDeliveryText(): string {
+    if (this.deliveryAddress.trim().length > 0) {
+      return this.deliveryAddress
+    }
+
+    return '填写配送地址'
+  }
+
+  private changeOrderType(type: string): void {
+    this.orderType = type
+
+    if (type === '外卖') {
+      this.deliveryStoreId = this.getNearestStore().id
+      this.orderPanelCollapsed = false
+    } else {
+      this.orderPanelCollapsed = true
+    }
+  }
+  private chooseStore(item: StoreInfo): void {
+    this.selectedStoreId = item.id
+    this.orderPanelCollapsed = true
+
+    promptAction.showToast({
+      message: '已选择 ' + item.name
+    })
+  }
+
+  private closeStoreSheet(): void {
+    this.showStoreSheet = false
+    this.orderPanelCollapsed = true
+  }
+
   private isDessert(item: ProductInfo): boolean {
     return item.category === '甜品'
   }
@@ -147,6 +267,7 @@ struct MenuPage {
   }
 
   private goDetail(item: ProductInfo): void {
+    this.orderPanelCollapsed = true
     this.showSpecSheet = false
 
     router.pushUrl({
@@ -162,6 +283,7 @@ struct MenuPage {
   }
 
   private openSpecSheet(item: ProductInfo): void {
+    this.orderPanelCollapsed = true
     this.selectedProductId = item.id
     this.selectedCount = 1
 
@@ -295,6 +417,7 @@ struct MenuPage {
     this.cartItems = newCartItems
     this.refreshCartMoney()
     this.showSpecSheet = false
+    this.orderPanelCollapsed = true
 
     promptAction.showToast({
       message: product.name + ' 已加入购物车'
@@ -419,8 +542,25 @@ struct MenuPage {
       return
     }
 
+    if (this.orderType === '外卖' && this.deliveryAddress.trim().length === 0) {
+      promptAction.showToast({
+        message: '请先填写配送地址'
+      })
+      return
+    }
+
+    if (this.orderType === '外卖') {
+      this.deliveryStoreId = this.getNearestStore().id
+    }
+
     router.pushUrl({
-      url: 'pages/OrderPage'
+      url: 'pages/OrderPage',
+      params: {
+        orderType: this.orderType,
+        selectedStoreId: this.selectedStoreId,
+        deliveryAddress: this.deliveryAddress,
+        deliveryStoreId: this.deliveryStoreId
+      }
     })
   }
 
@@ -428,6 +568,8 @@ struct MenuPage {
     Stack() {
       Column() {
         this.TopBar()
+
+        this.OrderTypePanel()
 
         Row() {
           this.CategoryList()
@@ -448,6 +590,10 @@ struct MenuPage {
 
       if (this.showSpecSheet) {
         this.SpecSheetMask()
+      }
+
+      if (this.showStoreSheet) {
+        this.StoreSheetMask()
       }
     }
     .width('100%')
@@ -488,7 +634,7 @@ struct MenuPage {
           .fontWeight(FontWeight.Bold)
           .fontColor('#2E2118')
 
-        Text('点击商品查看详情，点 + 选择规格')
+        Text('选择取餐方式，点击 + 选择规格')
           .fontSize(12)
           .fontColor('#9A7B60')
           .margin({ top: 2 })
@@ -512,6 +658,343 @@ struct MenuPage {
   }
 
   @Builder
+  OrderTypePanel() {
+    Column() {
+      if (this.orderPanelCollapsed) {
+        this.CollapsedOrderPanel()
+      } else {
+        Row() {
+          this.OrderTypeButton('自取')
+          this.OrderTypeButton('外卖')
+        }
+        .width('100%')
+        .height(44)
+        .padding({ left: 18, right: 18 })
+
+        if (this.orderType === '自取') {
+          this.PickupCard()
+        } else {
+          this.DeliveryCard()
+        }
+      }
+    }
+    .width('100%')
+    .padding({ bottom: this.orderPanelCollapsed ? 2 : 10 })
+    .backgroundColor('#FFF7EC')
+  }
+
+  @Builder
+  CollapsedOrderPanel() {
+    Column() {
+      Row() {
+        Row() {
+          this.CompactOrderTypeButton('自取')
+          this.CompactOrderTypeButton('外卖')
+        }
+        .width(126)
+        .height(36)
+        .padding(3)
+        .backgroundColor('#F6E5D2')
+        .borderRadius(18)
+
+        Blank()
+
+        Text(this.orderType === '自取' ? this.getSelectedStore().distance.toString() + 'km' : '修改地址')
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#8B5E3C')
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .backgroundColor('#F6E5D2')
+          .borderRadius(14)
+      }
+      .width('100%')
+      .height(38)
+
+      Row() {
+        Text('▣')
+          .fontSize(15)
+          .fontColor('#8B5E3C')
+          .margin({ right: 8 })
+
+        Column() {
+          Text(this.orderType === '自取' ? this.getSelectedStore().name : this.getCompactDeliveryText())
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#2E2118')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(this.orderType === '自取' ? this.getSelectedStore().address : '由最近门店配送')
+            .fontSize(11)
+            .fontColor('#9A7B60')
+            .margin({ top: 2 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text('›')
+          .fontSize(22)
+          .fontColor('#8B5E3C')
+          .margin({ left: 8 })
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 12, right: 10 })
+      .margin({ top: 6 })
+      .backgroundColor('#FFFFFF')
+      .borderRadius(18)
+      .shadow({
+        radius: 8,
+        color: '#10000000',
+        offsetX: 0,
+        offsetY: 3
+      })
+      .onClick(() => {
+        this.orderPanelCollapsed = false
+      })
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 4, bottom: 6 })
+    .backgroundColor('#FFF7EC')
+  }
+  @Builder
+  CompactOrderTypeButton(title: string) {
+    Text(title)
+      .fontSize(14)
+      .fontWeight(this.orderType === title ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.orderType === title ? '#FFFFFF' : '#8B5E3C')
+      .textAlign(TextAlign.Center)
+      .layoutWeight(1)
+      .height(30)
+      .backgroundColor(this.orderType === title ? '#8B5E3C' : '#00FFFFFF')
+      .borderRadius(15)
+      .onClick(() => {
+        this.changeOrderType(title)
+      })
+  }
+
+  @Builder
+  OrderTypeButton(title: string) {
+    Text(title)
+      .fontSize(16)
+      .fontWeight(this.orderType === title ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.orderType === title ? '#FFFFFF' : '#8B5E3C')
+      .textAlign(TextAlign.Center)
+      .layoutWeight(1)
+      .height(40)
+      .backgroundColor(this.orderType === title ? '#8B5E3C' : '#F6E5D2')
+      .borderRadius(20)
+      .margin({ right: title === '自取' ? 10 : 0 })
+      .onClick(() => {
+        this.changeOrderType(title)
+      })
+  }
+
+  @Builder
+  PickupCard() {
+    Column() {
+      Row() {
+        Column() {
+          Text('到店自取')
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#2E2118')
+
+          Text(this.getSelectedStore().name)
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#8B5E3C')
+            .margin({ top: 5 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(this.getSelectedStore().address)
+            .fontSize(12)
+            .fontColor('#9A7B60')
+            .margin({ top: 4 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text('切换门店')
+          .fontSize(13)
+          .fontColor('#FFFFFF')
+          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
+          .backgroundColor('#8B5E3C')
+          .borderRadius(16)
+          .onClick(() => {
+            this.showStoreSheet = true
+          })
+      }
+      .width('100%')
+
+      this.MapPreview(this.getSelectedStore())
+    }
+    .width('100%')
+    .padding(14)
+    .margin({ left: 18, right: 18, top: 10 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(22)
+    .shadow({
+      radius: 10,
+      color: '#12000000',
+      offsetX: 0,
+      offsetY: 4
+    })
+  }
+
+  @Builder
+  DeliveryCard() {
+    Column() {
+      Text('外卖配送')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#2E2118')
+        .width('100%')
+
+      TextInput({
+        placeholder: '请输入配送地址，例如：广东科技学院宿舍区',
+        text: this.deliveryAddress
+      })
+        .width('100%')
+        .height(46)
+        .fontSize(14)
+        .fontColor('#2E2118')
+        .placeholderColor('#B8A28C')
+        .backgroundColor('#F8F4EF')
+        .borderRadius(18)
+        .margin({ top: 10 })
+        .onChange((value: string) => {
+          this.deliveryAddress = value
+          this.deliveryStoreId = this.getNearestStore().id
+        })
+
+      Row() {
+        Column() {
+          Text('最近配送门店')
+            .fontSize(13)
+            .fontColor('#9A7B60')
+
+          Text(this.getDeliveryStore().name)
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#8B5E3C')
+            .margin({ top: 4 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text('预计距离 ' + this.getDeliveryStore().distance.toString() + 'km，由最近门店配送')
+            .fontSize(12)
+            .fontColor('#9A7B60')
+            .margin({ top: 4 })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text('>')
+          .fontSize(22)
+          .fontColor('#8B5E3C')
+      }
+      .width('100%')
+      .margin({ top: 12 })
+
+      this.MapPreview(this.getDeliveryStore())
+    }
+    .width('100%')
+    .padding(14)
+    .margin({ left: 18, right: 18, top: 10 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(22)
+    .shadow({
+      radius: 10,
+      color: '#12000000',
+      offsetX: 0,
+      offsetY: 4
+    })
+  }
+
+  @Builder
+  MapPreview(store: StoreInfo) {
+    Column() {
+      Row() {
+        Text('地图预览')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2E2118')
+          .layoutWeight(1)
+
+        Text(store.distance.toString() + 'km')
+          .fontSize(12)
+          .fontColor('#FFFFFF')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#D35400')
+          .borderRadius(12)
+      }
+      .width('100%')
+
+      Stack() {
+        Image(store.mapImage)
+          .width('100%')
+          .height(112)
+          .objectFit(ImageFit.Cover)
+          .borderRadius(18)
+
+        Stack({ alignContent: Alignment.Center }) {
+          Circle()
+            .width(26)
+            .height(26)
+            .fill('#F7E7D6')
+            .opacity(0.9)
+            .shadow({
+              radius: 8,
+              color: '#22000000',
+              offsetX: 0,
+              offsetY: 3
+            })
+
+          Circle()
+            .width(16)
+            .height(16)
+            .fill('#A35F2D')
+        }
+        .width(30)
+        .height(30)
+        .position({ x: 145, y: 30 })
+
+        Text(store.name)
+          .fontSize(12)
+          .fontColor('#6B4F3A')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .backgroundColor('#FDF7EF')
+          .borderRadius(12)
+          .position({ x: 82, y: 70 })
+
+        Text(store.distance.toString() + 'km')
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .backgroundColor('#8B5E3C')
+          .borderRadius(14)
+          .position({ x: 260, y: 76 })
+      }
+      .width('100%')
+      .height(112)
+      .margin({ top: 8 })
+      .borderRadius(18)
+      .clip(true)
+    }
+    .width('100%')
+    .margin({ top: 12 })
+  }
+
+  @Builder
   CategoryList() {
     Column() {
       ForEach(categoryList, (item: CategoryInfo) => {
@@ -528,6 +1011,7 @@ struct MenuPage {
         .borderRadius(18)
         .margin({ bottom: 12 })
         .onClick(() => {
+          this.orderPanelCollapsed = true
           this.currentCategory = item.name
         })
       }, (item: CategoryInfo) => item.id.toString())
@@ -724,6 +1208,170 @@ struct MenuPage {
       color: '#18000000',
       offsetX: 0,
       offsetY: -4
+    })
+  }
+
+  @Builder
+  StoreSheetMask() {
+    Column() {
+      Blank()
+        .layoutWeight(1)
+        .onClick(() => {
+          this.closeStoreSheet()
+        })
+
+      this.StoreSheet()
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#66000000')
+  }
+
+  @Builder
+  StoreSheet() {
+    Column() {
+      Row() {
+        Text('选择自取门店')
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2E2118')
+          .layoutWeight(1)
+
+        Text('×')
+          .fontSize(26)
+          .fontColor('#8B6F58')
+          .onClick(() => {
+            this.closeStoreSheet()
+          })
+      }
+      .width('100%')
+      .margin({ bottom: 14 })
+
+      Scroll() {
+        Column() {
+          ForEach(storeList, (item: StoreInfo) => {
+            this.StoreItem(item)
+          }, (item: StoreInfo) => item.id.toString())
+        }
+        .width('100%')
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('72%')
+    .padding({ left: 18, right: 18, top: 20, bottom: 18 })
+    .backgroundColor('#FFF7EC')
+    .borderRadius({ topLeft: 30, topRight: 30 })
+  }
+
+  @Builder
+  StoreItem(item: StoreInfo) {
+    Column() {
+      Row() {
+        Stack({ alignContent: Alignment.Center }) {
+          if (this.selectedStoreId === item.id) {
+            Circle()
+              .width(20)
+              .height(20)
+              .fill('#F7E7D6')
+              .border({
+                width: 1,
+                color: '#8B5E3C'
+              })
+
+            Circle()
+              .width(10)
+              .height(10)
+              .fill('#8B5E3C')
+          } else {
+            Circle()
+              .width(20)
+              .height(20)
+              .fill('#FFFFFF')
+              .border({
+                width: 1,
+                color: '#C9B8A6'
+              })
+          }
+        }
+        .width(30)
+        .height(30)
+        .margin({ right: 8 })
+        .onClick(() => {
+          this.chooseStore(item)
+        })
+
+        Column() {
+          Row() {
+            Text(item.name)
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#2E2118')
+              .layoutWeight(1)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+            if (this.selectedStoreId === item.id) {
+              Text('已选')
+                .fontSize(11)
+                .fontColor('#FFFFFF')
+                .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+                .backgroundColor('#8B5E3C')
+                .borderRadius(12)
+            }
+          }
+          .width('100%')
+
+          Text(item.address)
+            .fontSize(13)
+            .fontColor('#9A7B60')
+            .margin({ top: 6 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text('营业时间：' + item.openTime + ' ｜ 距离 ' + item.distance.toString() + 'km')
+            .fontSize(12)
+            .fontColor('#8B6F58')
+            .margin({ top: 6 })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+
+      this.MapPreview(item)
+
+      Text(this.selectedStoreId === item.id ? '当前门店' : '选择该门店')
+        .width('100%')
+        .height(42)
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .textAlign(TextAlign.Center)
+        .backgroundColor(this.selectedStoreId === item.id ? '#C9B8A6' : '#8B5E3C')
+        .borderRadius(21)
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.chooseStore(item)
+        })
+    }
+    .width('100%')
+    .padding(14)
+    .margin({ bottom: 14 })
+    .backgroundColor(this.selectedStoreId === item.id ? '#FFF3E5' : '#FFFFFF')
+    .borderRadius(22)
+    .border({
+      width: 1,
+      color: this.selectedStoreId === item.id ? '#E0B98E' : '#00FFFFFF'
+    })
+    .shadow({
+      radius: 8,
+      color: '#10000000',
+      offsetX: 0,
+      offsetY: 3
+    })
+    .onClick(() => {
+      this.chooseStore(item)
     })
   }
 
