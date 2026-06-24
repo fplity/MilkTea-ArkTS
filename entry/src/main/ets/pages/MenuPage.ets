@@ -1,4 +1,5 @@
 import router from '@ohos.router'
+import { AppTopBar } from '../common/AppTopBar'
 import {
   ProductInfo,
   productList,
@@ -58,16 +59,17 @@ struct MenuPage {
   aboutToAppear(): void {
     const params = router.getParams() as MenuParams
 
-    if (params && params.category !== undefined) {
-      this.currentCategory = getCategoryName(params.category)
-    }
+    if (params !== undefined) {
+      if (params.category !== undefined) {
+        this.currentCategory = getCategoryName(params.category)
+      }
 
-    if (params && params.productId !== undefined) {
-      const product: ProductInfo | undefined = getProductById(Number(params.productId))
-
-      if (product !== undefined) {
-        this.currentCategory = product.category
-        this.openSpecSheet(product)
+      if (params.productId !== undefined) {
+        const product: ProductInfo | undefined = getProductById(Number(params.productId))
+        if (product !== undefined) {
+          this.currentCategory = product.category
+          this.openSpecSheet(product)
+        }
       }
     }
 
@@ -92,11 +94,7 @@ struct MenuPage {
   }
 
   private getCompactDeliveryText(): string {
-    if (this.deliveryAddress.trim().length > 0) {
-      return this.deliveryAddress
-    }
-
-    return '填写配送地址'
+    return this.deliveryAddress.trim().length > 0 ? this.deliveryAddress : '填写配送地址'
   }
 
   private getCartProducts(): CartProductInfo[] {
@@ -153,12 +151,6 @@ struct MenuPage {
     }
   }
 
-  private goHome(): void {
-    router.replaceUrl({
-      url: 'pages/HomePage'
-    })
-  }
-
   private goDetail(item: ProductInfo): void {
     this.orderPanelCollapsed = true
     this.showSpecSheet = false
@@ -190,14 +182,7 @@ struct MenuPage {
   }
 
   private changeSelectedCount(type: string): void {
-    if (type === 'add') {
-      this.selectedCount++
-      return
-    }
-
-    if (this.selectedCount > 1) {
-      this.selectedCount--
-    }
+    this.selectedCount = Math.max(1, this.selectedCount + (type === 'add' ? 1 : -1))
   }
 
   private addCartWithSpec(): void {
@@ -243,32 +228,12 @@ struct MenuPage {
 
   private getCartSheetHeight(): string {
     const typeCount: number = this.getCartProducts().length
-
-    if (typeCount <= 0) {
-      return '34%'
-    }
-
-    if (typeCount === 1) {
-      return '42%'
-    }
-
-    if (typeCount === 2) {
-      return '52%'
-    }
-
-    if (typeCount === 3) {
-      return '62%'
-    }
-
-    return '75%'
+    const heights: string[] = ['34%', '42%', '52%', '62%']
+    return typeCount < heights.length ? heights[typeCount] : '75%'
   }
 
   private isSpecSelected(title: string, type: string): boolean {
-    if (type === 'temperature') {
-      return this.selectedTemperature === title
-    }
-
-    return this.selectedSugar === title
+    return type === 'temperature' ? this.selectedTemperature === title : this.selectedSugar === title
   }
 
   private setSpecValue(title: string, type: string): void {
@@ -280,15 +245,7 @@ struct MenuPage {
   }
 
   private getOrderTypeButtonBg(title: string, compact: boolean): string {
-    if (this.orderType === title) {
-      return '#8B5E3C'
-    }
-
-    if (compact) {
-      return '#00FFFFFF'
-    }
-
-    return '#F6E5D2'
+    return this.orderType === title ? '#8B5E3C' : compact ? '#00FFFFFF' : '#F6E5D2'
   }
 
   private checkout(): void {
@@ -320,7 +277,12 @@ struct MenuPage {
   build() {
     Stack() {
       Column() {
-        this.TopBar()
+        AppTopBar({
+          title: '商品菜单',
+          subtitle: '选择取餐方式，点击 + 选择规格',
+          rightText: '共' + productList.length.toString() + '件',
+          backUrl: 'pages/HomePage'
+        })
 
         this.OrderTypePanel()
 
@@ -351,62 +313,6 @@ struct MenuPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFF7EC')
-  }
-
-  @Builder
-  TopBar() {
-    Row() {
-      Stack({ alignContent: Alignment.Center }) {
-        Text('←')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#3B2A1A')
-      }
-      .width(46)
-      .height(46)
-      .borderRadius(23)
-      .backgroundColor('#FFFFFF')
-      .border({
-        width: 1,
-        color: '#E8D3BD'
-      })
-      .shadow({
-        radius: 14,
-        color: '#22000000',
-        offsetX: 0,
-        offsetY: 5
-      })
-      .onClick(() => {
-        this.goHome()
-      })
-
-      Column() {
-        Text('商品菜单')
-          .fontSize(25)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-
-        Text('选择取餐方式，点击 + 选择规格')
-          .fontSize(12)
-          .fontColor('#9A7B60')
-          .margin({ top: 2 })
-      }
-      .margin({ left: 14 })
-      .alignItems(HorizontalAlign.Start)
-
-      Blank()
-
-      Text('共' + productList.length.toString() + '件')
-        .fontSize(14)
-        .fontColor('#8B5E3C')
-        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-        .backgroundColor('#F6E5D2')
-        .borderRadius(16)
-    }
-    .width('100%')
-    .height(82)
-    .padding({ left: 18, right: 18 })
     .backgroundColor('#FFF7EC')
   }
 

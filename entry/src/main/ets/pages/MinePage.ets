@@ -2,26 +2,13 @@ import router from '@ohos.router'
 import { AppInfo } from '../common/AppInfo'
 import { CouponInfo, couponList } from '../common/CouponData'
 import { BottomNavBar } from '../common/BottomNavBar'
+import { PaidOrderInfo } from '../common/OrderModel'
 import { showToast } from '../common/AppToast'
 
 interface SettingItem {
   icon: string
   title: string
   desc: string
-}
-
-interface PaidOrderInfo {
-  orderNo: string
-  takeWay: string
-  payWay: string
-  totalCount: number
-  goodsMoney: number
-  couponMoney: number
-  finalMoney: number
-  pickupNo: string
-  expressNo: string
-  productText: string
-  createTime: string
 }
 
 @Entry
@@ -45,13 +32,6 @@ struct MinePage {
     router.pushUrl({
       url: 'pages/CouponPage'
     })
-  }
-
-  private isCouponText(title: string, desc: string): boolean {
-    return title.includes('优惠') ||
-    title.includes('券') ||
-    desc.includes('优惠') ||
-    desc.includes('券')
   }
 
   build() {
@@ -227,47 +207,9 @@ struct MinePage {
       .width('100%')
 
       Row() {
-        Column() {
-          Text('成长值')
-            .fontSize(12)
-            .fontColor('#F6D8A8')
-
-          Text('2680')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-            .margin({ top: 4 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Column() {
-          Text('本月权益')
-            .fontSize(12)
-            .fontColor('#F6D8A8')
-
-          Text('8 项')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-            .margin({ top: 4 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Column() {
-          Text('已下单')
-            .fontSize(12)
-            .fontColor('#F6D8A8')
-
-          Text(this.paidOrders.length.toString() + ' 单')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-            .margin({ top: 4 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
+        this.MemberStat('成长值', '2680')
+        this.MemberStat('本月权益', '8 项')
+        this.MemberStat('已下单', this.paidOrders.length.toString() + ' 单')
       }
       .width('100%')
       .margin({ top: 24 })
@@ -283,6 +225,23 @@ struct MinePage {
       offsetX: 0,
       offsetY: 8
     })
+  }
+
+  @Builder
+  MemberStat(label: string, value: string) {
+    Column() {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#F6D8A8')
+
+      Text(value)
+        .fontSize(24)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .margin({ top: 4 })
+    }
+    .alignItems(HorizontalAlign.Start)
+    .layoutWeight(1)
   }
 
   @Builder
@@ -686,11 +645,7 @@ struct MinePage {
     .width('100%')
     .padding({ top: 12, bottom: 12 })
     .onClick(() => {
-      if (this.isCouponText(item.title, item.desc)) {
-        this.goCoupon()
-      } else {
-        showToast(item.title)
-      }
+      showToast(item.title)
     })
   }
   @Builder

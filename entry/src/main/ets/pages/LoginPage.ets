@@ -1,6 +1,6 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
 import { AppTopBar } from '../common/AppTopBar'
+import { showToast } from '../common/AppToast'
 
 @Entry
 @Component
@@ -12,39 +12,29 @@ struct LoginPage {
   @StorageLink('isLogin') isLogin: boolean = false
   @StorageLink('userPhone') userPhone: string = ''
 
+  private isEmpty(value: string, message: string): boolean {
+    if (value.trim() !== '') {
+      return false
+    }
+
+    showToast(message)
+    return true
+  }
+
   private submit(): void {
-    if (this.phone.trim() === '') {
-      promptAction.showToast({
-        message: '请输入账号'
-      })
-      return
-    }
-
-    if (this.password.trim() === '') {
-      promptAction.showToast({
-        message: '请输入密码'
-      })
-      return
-    }
-
-    if (this.isRegister && this.confirmPassword.trim() === '') {
-      promptAction.showToast({
-        message: '请再次输入密码'
-      })
-      return
-    }
-
-    if (this.isRegister && this.confirmPassword !== this.password) {
-      promptAction.showToast({
-        message: '两次密码不一致'
-      })
+    if (this.isEmpty(this.phone, '请输入账号') ||
+      this.isEmpty(this.password, '请输入密码') ||
+      (this.isRegister && this.isEmpty(this.confirmPassword, '请再次输入密码'))) {
       return
     }
 
     if (this.isRegister) {
-      promptAction.showToast({
-        message: '注册成功，请登录'
-      })
+      if (this.confirmPassword !== this.password) {
+        showToast('两次密码不一致')
+        return
+      }
+
+      showToast('注册成功，请登录')
 
       this.isRegister = false
       this.password = ''
@@ -65,9 +55,7 @@ struct LoginPage {
             router.replaceUrl({
               url: 'pages/CouponPage'
             }).catch(() => {
-              promptAction.showToast({
-                message: '跳转失败，请检查 CouponPage 是否注册'
-              })
+              showToast('跳转失败，请检查 CouponPage 是否注册')
             })
           }
         }

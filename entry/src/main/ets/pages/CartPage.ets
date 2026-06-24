@@ -1,4 +1,5 @@
 import router from '@ohos.router'
+import { AppTopBar } from '../common/AppTopBar'
 import {
   CartItemInfo,
   CartProductInfo,
@@ -22,10 +23,6 @@ struct CartPage {
 
   aboutToAppear(): void {
     this.refreshCartMoney()
-  }
-
-  private goBack(): void {
-    router.back()
   }
 
   private goMenu(): void {
@@ -83,58 +80,7 @@ struct CartPage {
 
   build() {
     Column() {
-      Row() {
-        Stack({ alignContent: Alignment.Center }) {
-          Text('←')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#3B2A1A')
-        }
-        .width(46)
-        .height(46)
-        .borderRadius(23)
-        .backgroundColor('#FFFFFF')
-        .border({
-          width: 1,
-          color: '#E8D3BD'
-        })
-        .shadow({
-          radius: 14,
-          color: '#22000000',
-          offsetX: 0,
-          offsetY: 5
-        })
-        .onClick(() => {
-          this.goBack()
-        })
-
-        Column() {
-          Text('购物车')
-            .fontSize(25)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#2E2118')
-
-          Text('确认你的点单')
-            .fontSize(12)
-            .fontColor('#9A7B60')
-            .margin({ top: 2 })
-        }
-        .margin({ left: 14 })
-        .alignItems(HorizontalAlign.Start)
-
-        Blank()
-
-        Text('共' + this.cartCount.toString() + '件')
-          .fontSize(14)
-          .fontColor('#8B5E3C')
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor('#F6E5D2')
-          .borderRadius(16)
-      }
-      .width('100%')
-      .height(82)
-      .padding({ left: 18, right: 18 })
-      .backgroundColor('#FFF7EC')
+      AppTopBar({ title: '购物车', subtitle: '确认你的点单', rightText: '共' + this.cartCount.toString() + '件' })
 
       Scroll() {
         Column() {

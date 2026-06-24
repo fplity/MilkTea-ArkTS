@@ -1,12 +1,14 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
-import { ProductInfo, productList, getProductById } from '../common/ProductData'
+import { AppTopBar } from '../common/AppTopBar'
+import { ProductInfo, getProductByIdOrFirst } from '../common/ProductData'
 import {
+  addCartItem,
   CartItemInfo,
   CartTotal,
   getCartTotal as calcCartTotal,
   getSpecText as buildSpecText
 } from '../common/CartUtils'
+import { showToast } from '../common/AppToast'
 
 interface DetailParams {
   id?: number
@@ -38,33 +40,17 @@ struct DetailPage {
   }
 
   private getProduct(): ProductInfo {
-    const result: ProductInfo | undefined = getProductById(this.productId)
-
-    if (result !== undefined) {
-      return result
-    }
-
-    return productList[0]
+    return getProductByIdOrFirst(this.productId)
   }
 
   private getProductTag(): string {
     const product: ProductInfo = this.getProduct()
-
-    if (product.tag !== undefined) {
-      return product.tag
-    }
-
-    return '精选推荐'
+    return product.tag !== undefined ? product.tag : '精选推荐'
   }
 
   private getProductDetail(): string {
     const product: ProductInfo = this.getProduct()
-
-    if (product.detail !== undefined) {
-      return product.detail
-    }
-
-    return product.desc
+    return product.detail !== undefined ? product.detail : product.desc
   }
 
   private resetSpec(): void {
@@ -85,10 +71,6 @@ struct DetailPage {
     return buildSpecText(product.category, this.selectedTemperature, this.selectedSugar)
   }
 
-  private goBack(): void {
-    router.back()
-  }
-
   private addCount(): void {
     this.count++
   }
@@ -106,59 +88,25 @@ struct DetailPage {
     this.cartTotal = cartTotalInfo.total
   }
 
-  private updateCartItem(id: number, addCount: number): void {
+  private addCurrentSpecToCart(): void {
     const product: ProductInfo = this.getProduct()
-    let hasItem: boolean = false
-    const newCartItems: CartItemInfo[] = []
-
     const finalTemperature: string = product.category === '甜品' ? '默认' : this.selectedTemperature
     const finalSugar: string = product.category === '甜品' ? '默认' : this.selectedSugar
 
-    this.cartItems.forEach((item: CartItemInfo) => {
-      if (
-        item.id === id &&
-          item.temperature === finalTemperature &&
-          item.sugar === finalSugar
-      ) {
-        hasItem = true
-        newCartItems.push({
-          id: item.id,
-          count: item.count + addCount,
-          temperature: item.temperature,
-          sugar: item.sugar
-        })
-      } else {
-        newCartItems.push(item)
-      }
-    })
-
-    if (!hasItem) {
-      newCartItems.push({
-        id: id,
-        count: addCount,
-        temperature: finalTemperature,
-        sugar: finalSugar
-      })
-    }
-
-    this.cartItems = newCartItems
+    this.cartItems = addCartItem(this.cartItems, product.id, finalTemperature, finalSugar, this.count)
     this.refreshCartMoney()
   }
 
   private addToCart(): void {
     const product = this.getProduct()
 
-    this.updateCartItem(product.id, this.count)
+    this.addCurrentSpecToCart()
 
-    promptAction.showToast({
-      message: product.name + ' 已加入购物车'
-    })
+    showToast(product.name + ' 已加入购物车')
   }
 
   private buyNow(): void {
-    const product: ProductInfo = this.getProduct()
-
-    this.updateCartItem(product.id, this.count)
+    this.addCurrentSpecToCart()
 
     router.pushUrl({
       url: 'pages/OrderPage'
@@ -167,50 +115,7 @@ struct DetailPage {
 
   build() {
     Column() {
-      Row() {
-        Stack({ alignContent: Alignment.Center }) {
-          Text('←')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#3B2A1A')
-        }
-        .width(46)
-        .height(46)
-        .borderRadius(23)
-        .backgroundColor('#FFFFFF')
-        .border({
-          width: 1,
-          color: '#E8D3BD'
-        })
-        .shadow({
-          radius: 14,
-          color: '#22000000',
-          offsetX: 0,
-          offsetY: 5
-        })
-        .onClick(() => {
-          this.goBack()
-        })
-
-        Text('商品详情')
-          .fontSize(25)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .margin({ left: 14 })
-
-        Blank()
-
-        Text(this.getProduct().category)
-          .fontSize(14)
-          .fontColor('#8B5E3C')
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor('#F6E5D2')
-          .borderRadius(16)
-      }
-      .width('100%')
-      .height(82)
-      .padding({ left: 18, right: 18 })
-      .backgroundColor('#FFF7EC')
+      AppTopBar({ title: '商品详情', rightText: this.getProduct().category })
 
       Scroll() {
         Column() {
@@ -441,7 +346,7 @@ struct DetailPage {
 
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.temperatureList, (item: string) => {
-            this.TemperatureChip(item)
+            this.SpecChip(item, 'temperature')
           }, (item: string) => item)
         }
         .width('100%')
@@ -456,7 +361,7 @@ struct DetailPage {
 
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.sugarList, (item: string) => {
-            this.SugarChip(item)
+            this.SpecChip(item, 'sugar')
           }, (item: string) => item)
         }
         .width('100%')
@@ -485,33 +390,30 @@ struct DetailPage {
     })
   }
 
-  @Builder
-  TemperatureChip(title: string) {
-    Text(title)
-      .fontSize(14)
-      .fontWeight(this.selectedTemperature === title ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.selectedTemperature === title ? '#FFFFFF' : '#6B4F3A')
-      .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-      .margin({ right: 10, bottom: 10 })
-      .backgroundColor(this.selectedTemperature === title ? '#8B5E3C' : '#F6E5D2')
-      .borderRadius(18)
-      .onClick(() => {
-        this.selectedTemperature = title
-      })
+  private isSpecSelected(title: string, type: string): boolean {
+    return type === 'temperature' ? this.selectedTemperature === title : this.selectedSugar === title
+  }
+
+  private setSpecValue(title: string, type: string): void {
+    if (type === 'temperature') {
+      this.selectedTemperature = title
+    } else {
+      this.selectedSugar = title
+    }
   }
 
   @Builder
-  SugarChip(title: string) {
+  SpecChip(title: string, type: string) {
     Text(title)
       .fontSize(14)
-      .fontWeight(this.selectedSugar === title ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.selectedSugar === title ? '#FFFFFF' : '#6B4F3A')
+      .fontWeight(this.isSpecSelected(title, type) ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.isSpecSelected(title, type) ? '#FFFFFF' : '#6B4F3A')
       .padding({ left: 16, right: 16, top: 9, bottom: 9 })
       .margin({ right: 10, bottom: 10 })
-      .backgroundColor(this.selectedSugar === title ? '#8B5E3C' : '#F6E5D2')
+      .backgroundColor(this.isSpecSelected(title, type) ? '#8B5E3C' : '#F6E5D2')
       .borderRadius(18)
       .onClick(() => {
-        this.selectedSugar = title
+        this.setSpecValue(title, type)
       })
   }
 }

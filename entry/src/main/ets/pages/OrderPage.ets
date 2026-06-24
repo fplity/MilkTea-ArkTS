@@ -1,6 +1,6 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
-import { StoreInfo, storeList, getStoreById } from '../common/StoreData'
+import { AppTopBar } from '../common/AppTopBar'
+import { StoreInfo, getStoreByIdOrFirst } from '../common/StoreData'
 import {
   CartItemInfo,
   CartProductInfo,
@@ -9,22 +9,8 @@ import {
   getCartTotal as calcCartTotal,
   getSpecText as buildSpecText
 } from '../common/CartUtils'
-
-
-
-interface PaidOrderInfo {
-  orderNo: string
-  takeWay: string
-  payWay: string
-  totalCount: number
-  goodsMoney: number
-  couponMoney: number
-  finalMoney: number
-  pickupNo: string
-  expressNo: string
-  productText: string
-  createTime: string
-}
+import { PaidOrderInfo } from '../common/OrderModel'
+import { showToast } from '../common/AppToast'
 
 interface OrderParams {
   orderType?: string
@@ -51,7 +37,6 @@ struct OrderPage {
   @StorageLink('deliveryStoreId') deliveryStoreId: number = 1
 
   @State remark: string = ''
-  @State takeWay: string = '到店自取'
   @State payWay: string = '微信支付'
   @State orderNo: string = 'MT20260608'
 
@@ -59,10 +44,6 @@ struct OrderPage {
     this.syncOrderParams()
     this.refreshOrderMoney()
     this.orderNo = 'MT' + Date.now().toString()
-  }
-
-  private goBack(): void {
-    router.back()
   }
 
   private goMenu(): void {
@@ -80,55 +61,37 @@ struct OrderPage {
   private syncOrderParams(): void {
     const params = router.getParams() as OrderParams
 
-    if (params !== undefined && params.orderType !== undefined) {
+    if (params === undefined) {
+      return
+    }
+
+    if (params.orderType !== undefined) {
       this.orderType = params.orderType
     }
 
-    if (params !== undefined && params.selectedStoreId !== undefined) {
+    if (params.selectedStoreId !== undefined) {
       this.selectedStoreId = Number(params.selectedStoreId)
     }
 
-    if (params !== undefined && params.deliveryAddress !== undefined) {
+    if (params.deliveryAddress !== undefined) {
       this.deliveryAddress = params.deliveryAddress
     }
 
-    if (params !== undefined && params.deliveryStoreId !== undefined) {
+    if (params.deliveryStoreId !== undefined) {
       this.deliveryStoreId = Number(params.deliveryStoreId)
-    }
-
-    if (this.orderType === '外卖') {
-      this.takeWay = '外卖配送'
-    } else {
-      this.takeWay = '到店自取'
     }
   }
 
   private getSelectedStore(): StoreInfo {
-    const store: StoreInfo | undefined = getStoreById(this.selectedStoreId)
-
-    if (store !== undefined) {
-      return store
-    }
-
-    return storeList[0]
+    return getStoreByIdOrFirst(this.selectedStoreId)
   }
 
   private getDeliveryStore(): StoreInfo {
-    const store: StoreInfo | undefined = getStoreById(this.deliveryStoreId)
-
-    if (store !== undefined) {
-      return store
-    }
-
-    return storeList[0]
+    return getStoreByIdOrFirst(this.deliveryStoreId)
   }
 
   private getCurrentTakeWayText(): string {
-    if (this.orderType === '外卖') {
-      return '外卖配送'
-    }
-
-    return '到店自取'
+    return this.orderType === '外卖' ? '外卖配送' : '到店自取'
   }
 
   private getReceiveMainText(): string {
@@ -179,13 +142,7 @@ struct OrderPage {
   }
 
   private getFinalPrice(): number {
-    let finalPrice: number = this.cartTotal - this.getRealCouponMoney()
-
-    if (finalPrice < 0) {
-      return 0
-    }
-
-    return finalPrice
+    return Math.max(this.cartTotal - this.getRealCouponMoney(), 0)
   }
 
   private getPickupNo(): string {
@@ -209,42 +166,33 @@ struct OrderPage {
 
   private getOrderProductText(): string {
     const products: CartProductInfo[] = this.getOrderProducts()
-    let text: string = ''
+    const texts: string[] = []
 
     products.forEach((item: CartProductInfo) => {
-      text += item.name + '（' + this.getSpecText(item) + '）×' + item.count.toString() + ' '
+      texts.push(item.name + '（' + this.getSpecText(item) + '）×' + item.count.toString())
     })
 
-    return text
+    return texts.join(' ')
   }
 
   private submitOrder(): void {
-    if (this.orderType === '外卖') {
-      this.takeWay = '外卖配送'
-    } else {
-      this.takeWay = '到店自取'
-    }
-
     if (this.cartCount === 0) {
-      promptAction.showToast({
-        message: '请先选择商品'
-      })
+      showToast('请先选择商品')
       return
     }
 
     if (this.orderType === '外卖' && this.deliveryAddress.trim().length === 0) {
-      promptAction.showToast({
-        message: '请先填写配送地址'
-      })
+      showToast('请先填写配送地址')
       return
     }
 
-    const pickupNo: string = this.takeWay === '到店自取' ? this.getPickupNo() : ''
-    const expressNo: string = this.takeWay === '外卖配送' ? this.getExpressNo() : ''
+    const takeWay: string = this.getCurrentTakeWayText()
+    const pickupNo: string = takeWay === '到店自取' ? this.getPickupNo() : ''
+    const expressNo: string = takeWay === '外卖配送' ? this.getExpressNo() : ''
 
     const newOrder: PaidOrderInfo = {
       orderNo: this.orderNo,
-      takeWay: this.takeWay,
+      takeWay: takeWay,
       payWay: this.payWay,
       totalCount: this.cartCount,
       goodsMoney: this.cartTotal,
@@ -256,22 +204,12 @@ struct OrderPage {
       createTime: this.getCreateTime()
     }
 
-    const newPaidOrders: PaidOrderInfo[] = [newOrder]
+    this.paidOrders = [newOrder].concat(this.paidOrders)
 
-    this.paidOrders.forEach((item: PaidOrderInfo) => {
-      newPaidOrders.push(item)
-    })
-
-    this.paidOrders = newPaidOrders
-
-    if (this.takeWay === '到店自取') {
-      promptAction.showToast({
-        message: '支付成功，取餐号：' + pickupNo
-      })
+    if (takeWay === '到店自取') {
+      showToast('支付成功，取餐号：' + pickupNo)
     } else {
-      promptAction.showToast({
-        message: '支付成功，快递号：' + expressNo
-      })
+      showToast('支付成功，快递号：' + expressNo)
     }
 
     this.cartItems = []
@@ -289,58 +227,7 @@ struct OrderPage {
 
   build() {
     Column() {
-      Row() {
-        Stack({ alignContent: Alignment.Center }) {
-          Text('←')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#3B2A1A')
-        }
-        .width(46)
-        .height(46)
-        .borderRadius(23)
-        .backgroundColor('#FFFFFF')
-        .border({
-          width: 1,
-          color: '#E8D3BD'
-        })
-        .shadow({
-          radius: 14,
-          color: '#22000000',
-          offsetX: 0,
-          offsetY: 5
-        })
-        .onClick(() => {
-          this.goBack()
-        })
-
-        Column() {
-          Text('确认订单')
-            .fontSize(25)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#2E2118')
-
-          Text('请确认取餐与商品信息')
-            .fontSize(12)
-            .fontColor('#9A7B60')
-            .margin({ top: 2 })
-        }
-        .margin({ left: 14 })
-        .alignItems(HorizontalAlign.Start)
-
-        Blank()
-
-        Text('共' + this.cartCount.toString() + '件')
-          .fontSize(14)
-          .fontColor('#8B5E3C')
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor('#F6E5D2')
-          .borderRadius(16)
-      }
-      .width('100%')
-      .height(82)
-      .padding({ left: 18, right: 18 })
-      .backgroundColor('#FFF7EC')
+      AppTopBar({ title: '确认订单', subtitle: '请确认取餐与商品信息', rightText: '共' + this.cartCount.toString() + '件' })
 
       Scroll() {
         Column() {
@@ -580,33 +467,6 @@ struct OrderPage {
     }
     .width('100%')
     .margin({ top: 10 })
-  }
-
-  @Builder
-  TakeWayItem(title: string, desc: string) {
-    Column() {
-      Text(title)
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.takeWay === title ? '#FFFFFF' : '#2E2118')
-
-      Text(desc)
-        .fontSize(11)
-        .fontColor(this.takeWay === title ? '#F7E6D3' : '#9A7B60')
-        .margin({ top: 6 })
-        .maxLines(2)
-    }
-    .layoutWeight(1)
-    .height(90)
-    .padding(14)
-    .margin({ right: title === '到店自取' ? 10 : 0 })
-    .backgroundColor(this.takeWay === title ? '#8B5E3C' : '#F8F4EF')
-    .borderRadius(22)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Start)
-    .onClick(() => {
-      this.takeWay = title
-    })
   }
 
   @Builder

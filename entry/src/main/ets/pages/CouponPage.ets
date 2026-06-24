@@ -1,7 +1,7 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
 import { CouponInfo, couponList } from '../common/CouponData'
 import { AppTopBar } from '../common/AppTopBar'
+import { showToast } from '../common/AppToast'
 
 @Entry
 @Component
@@ -22,9 +22,7 @@ struct CouponPage {
 
   aboutToAppear() {
     if (!this.isLogin) {
-      promptAction.showToast({
-        message: '请先登录账号后查看优惠券'
-      })
+      showToast('请先登录账号后查看优惠券')
     }
   }
 
@@ -96,9 +94,7 @@ struct CouponPage {
 
   private handleCouponClick(item: CouponInfo): void {
     if (!this.isLogin) {
-      promptAction.showToast({
-        message: '请先登录账号'
-      })
+      showToast('请先登录账号')
 
       router.pushUrl({
         url: 'pages/LoginPage'
@@ -109,16 +105,12 @@ struct CouponPage {
     if (!this.getReceived(item.id)) {
       this.setReceived(item.id)
 
-      promptAction.showToast({
-        message: '领取成功'
-      })
+      showToast('领取成功')
       return
     }
 
     if (!this.canUseCoupon(item.limitMoney)) {
-      promptAction.showToast({
-        message: '当前商品金额不足，满 ' + item.limitMoney.toString() + ' 元可用'
-      })
+      showToast('当前商品金额不足，满 ' + item.limitMoney.toString() + ' 元可用')
       return
     }
 
@@ -140,9 +132,7 @@ struct CouponPage {
             this.selectedCouponTitle = ''
             this.selectedCouponLimit = 0
 
-            promptAction.showToast({
-              message: '已取消使用优惠券'
-            })
+            showToast('已取消使用优惠券')
           }
         }
       })
@@ -166,9 +156,7 @@ struct CouponPage {
           this.selectedCouponTitle = item.title
           this.selectedCouponLimit = item.limitMoney
 
-          promptAction.showToast({
-            message: '已选择使用优惠券'
-          })
+          showToast('已选择使用优惠券')
         }
       }
     })

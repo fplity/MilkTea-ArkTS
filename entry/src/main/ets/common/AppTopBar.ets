@@ -5,10 +5,10 @@ export struct AppTopBar {
   @Prop title: string
   @Prop subtitle: string = ''
   @Prop rightText: string = ''
+  @Prop backUrl: string = ''
 
   build() {
     Row() {
-      // 返回箭头
       Text('‹')
         .fontSize(34)
         .fontColor('#3B2517')
@@ -18,10 +18,13 @@ export struct AppTopBar {
         .backgroundColor('#FFFFFF')
         .borderRadius(21)
         .onClick(() => {
-          router.back()
+          if (this.backUrl === '') {
+            router.back()
+          } else {
+            router.replaceUrl({ url: this.backUrl })
+          }
         })
 
-      // 标题和副标题
       Column() {
         Text(this.title)
           .fontSize(24)
@@ -38,7 +41,6 @@ export struct AppTopBar {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      // 右侧文本按钮（如“编辑”、“保存”等）
       if (this.rightText !== '') {
         Text(this.rightText)
           .fontSize(14)

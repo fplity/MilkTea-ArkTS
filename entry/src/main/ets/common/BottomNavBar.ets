@@ -7,7 +7,6 @@ interface NavItem {
   key: string
 }
 
-// 底部导航配置项
 const navList: NavItem[] = [
   { icon: $r('app.media.home'), title: '首页', pageUrl: 'pages/HomePage', key: 'home' },
   { icon: $r('app.media.menu'), title: '点单', pageUrl: 'pages/MenuPage', key: 'menu' },
@@ -17,7 +16,7 @@ const navList: NavItem[] = [
 
 @Component
 export struct BottomNavBar {
-  @Prop current: string  // 当前选中的 key
+  @Prop current: string
 
   build() {
     Row() {

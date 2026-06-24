@@ -1,4 +1,5 @@
 import router from '@ohos.router'
+import { AppTopBar } from '../common/AppTopBar'
 import { ProductInfo, productList } from '../common/ProductData'
 
 @Entry
@@ -23,7 +24,8 @@ struct SearchPage {
 
   build() {
     Column() {
-      this.TopBar()
+      AppTopBar({ title: '搜索商品' })
+      this.SearchBox()
 
       Scroll() {
         Column() {
@@ -48,68 +50,43 @@ struct SearchPage {
   }
 
   @Builder
-  TopBar() {
-    Column() {
-      Row() {
-        Text('‹')
-          .fontSize(34)
-          .fontColor('#3B2517')
-          .width(42)
-          .height(42)
-          .textAlign(TextAlign.Center)
-          .backgroundColor('#FFFFFF')
-          .borderRadius(21)
-          .onClick(() => {
-            router.back()
-          })
+  SearchBox() {
+    Row() {
+      Text('🔍')
+        .fontSize(18)
+        .margin({ left: 14, right: 8 })
 
-        Text('搜索商品')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#3B2517')
-          .margin({ left: 14 })
-          .layoutWeight(1)
-      }
-      .width('100%')
-      .padding({ left: 20, right: 20, top: 36 })
-
-      Row() {
-        Text('🔍')
-          .fontSize(18)
-          .margin({ left: 14, right: 8 })
-
-        TextInput({
-          placeholder: '输入奶茶、果茶、咖啡、甜品名称',
-          text: this.keyword
+      TextInput({
+        placeholder: '输入奶茶、果茶、咖啡、甜品名称',
+        text: this.keyword
+      })
+        .fontSize(15)
+        .fontColor('#3B2517')
+        .placeholderColor('#B8A99A')
+        .backgroundColor('#FFFFFF')
+        .layoutWeight(1)
+        .height(48)
+        .onChange((value: string) => {
+          this.keyword = value
         })
-          .fontSize(15)
-          .fontColor('#3B2517')
-          .placeholderColor('#B8A99A')
-          .backgroundColor('#FFFFFF')
-          .layoutWeight(1)
-          .height(48)
-          .onChange((value: string) => {
-            this.keyword = value
-          })
 
-        if (this.keyword !== '') {
-          Text('×')
-            .fontSize(22)
-            .fontColor('#9B7A5E')
-            .width(36)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              this.keyword = ''
-            })
-        }
+      if (this.keyword !== '') {
+        Text('×')
+          .fontSize(22)
+          .fontColor('#9B7A5E')
+          .width(36)
+          .textAlign(TextAlign.Center)
+          .onClick(() => {
+            this.keyword = ''
+          })
       }
-      .width('90%')
-      .height(54)
-      .margin({ top: 18, bottom: 16 })
-      .backgroundColor('#FFFFFF')
-      .borderRadius(27)
-      .alignItems(VerticalAlign.Center)
     }
+    .width('90%')
+    .height(54)
+    .margin({ top: 10, bottom: 16 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(27)
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder

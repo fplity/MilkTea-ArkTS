@@ -19,12 +19,7 @@ export interface CartTotal {
 }
 
 function buildCartItem(id: number, count: number, temperature: string, sugar: string): CartItemInfo {
-  return {
-    id: id,
-    count: count,
-    temperature: temperature,
-    sugar: sugar
-  }
+  return { id, count, temperature, sugar }
 }
 
 export function getCartProducts(cartItems: CartItemInfo[]): CartProductInfo[] {
@@ -33,7 +28,7 @@ export function getCartProducts(cartItems: CartItemInfo[]): CartProductInfo[] {
     const product: ProductInfo | undefined = getProductById(cartItem.id)
 
     if (product !== undefined && cartItem.count > 0) {
-      const cartProduct: CartProductInfo = {
+      result.push({
         id: product.id,
         name: product.name,
         category: product.category,
@@ -46,8 +41,7 @@ export function getCartProducts(cartItems: CartItemInfo[]): CartProductInfo[] {
         count: cartItem.count,
         temperature: cartItem.temperature,
         sugar: cartItem.sugar
-      }
-      result.push(cartProduct)
+      })
     }
   })
   return result
