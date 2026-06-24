@@ -28,17 +28,7 @@ interface MenuParams {
   productId?: number
 }
 
-interface CategoryInfo {
-  id: number
-  name: string
-}
-
-const categoryList: CategoryInfo[] = [
-  { id: 1, name: '奶茶' },
-  { id: 2, name: '咖啡' },
-  { id: 3, name: '甜品' },
-  { id: 4, name: '果茶' }
-]
+const categoryList: string[] = ['奶茶', '咖啡', '甜品', '果茶']
 
 @Entry
 @Component
@@ -745,24 +735,24 @@ struct MenuPage {
   @Builder
   CategoryList() {
     Column() {
-      ForEach(categoryList, (item: CategoryInfo) => {
+      ForEach(categoryList, (item: string) => {
         Column() {
-          Text(item.name)
+          Text(item)
             .fontSize(16)
-            .fontWeight(this.currentCategory === item.name ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.currentCategory === item.name ? '#FFFFFF' : '#6B4F3A')
+            .fontWeight(this.currentCategory === item ? FontWeight.Bold : FontWeight.Normal)
+            .fontColor(this.currentCategory === item ? '#FFFFFF' : '#6B4F3A')
         }
         .width('100%')
         .height(58)
         .justifyContent(FlexAlign.Center)
-        .backgroundColor(this.currentCategory === item.name ? '#8B5E3C' : '#F6E5D2')
+        .backgroundColor(this.currentCategory === item ? '#8B5E3C' : '#F6E5D2')
         .borderRadius(18)
         .margin({ bottom: 12 })
         .onClick(() => {
           this.orderPanelCollapsed = true
-          this.currentCategory = item.name
+          this.currentCategory = item
         })
-      }, (item: CategoryInfo) => item.id.toString())
+      }, (item: string) => item)
     }
     .width(98)
     .height('100%')

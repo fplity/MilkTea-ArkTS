@@ -1,5 +1,4 @@
 import router from '@ohos.router'
-import { AppTheme } from './AppTheme'
 
 interface NavItem {
   icon: ResourceStr
@@ -32,7 +31,7 @@ export struct BottomNavBar {
 
           Text(item.title)
             .fontSize(12)
-            .fontColor(this.current === item.key ? AppTheme.NAV_ACTIVE : AppTheme.NAV_INACTIVE)
+            .fontColor(this.current === item.key ? '#6F4E37' : '#B8A99A')
             .margin({ top: 4 })
         }
         .layoutWeight(1)
@@ -50,6 +49,6 @@ export struct BottomNavBar {
     .width('100%')
     .height(72)
     .padding({ left: 8, right: 8 })
-    .backgroundColor(AppTheme.WHITE)
+    .backgroundColor('#FFFFFF')
   }
 }
