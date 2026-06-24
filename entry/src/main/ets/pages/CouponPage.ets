@@ -1,5 +1,7 @@
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
+import { CouponInfo, couponList } from '../common/CouponData'
+import { AppTopBar } from '../common/AppTopBar'
 
 @Entry
 @Component
@@ -26,23 +28,24 @@ struct CouponPage {
     }
   }
 
-  private getReceived(money: number): boolean {
-    if (money === 8) {
+  private getReceived(id: string): boolean {
+    if (id === 'new-user') {
       return this.coupon8Received
-    } else if (money === 5) {
+    } else if (id === 'milk-tea') {
       return this.coupon5Received
-    } else if (money === 6) {
+    } else if (id === 'fruit-tea') {
       return this.coupon6Received
     }
+
     return false
   }
 
-  private setReceived(money: number): void {
-    if (money === 8) {
+  private setReceived(id: string): void {
+    if (id === 'new-user') {
       this.coupon8Received = true
-    } else if (money === 5) {
+    } else if (id === 'milk-tea') {
       this.coupon5Received = true
-    } else if (money === 6) {
+    } else if (id === 'fruit-tea') {
       this.coupon6Received = true
     }
   }
@@ -51,47 +54,47 @@ struct CouponPage {
     return this.cartTotal >= limitMoney
   }
 
-  private getCouponButtonText(money: number, limitMoney: number): string {
+  private getCouponButtonText(item: CouponInfo): string {
     if (!this.isLogin) {
       return '登录后领取'
     }
 
-    if (!this.getReceived(money)) {
+    if (!this.getReceived(item.id)) {
       return '点击领取'
     }
 
-    if (this.selectedCouponMoney === money) {
+    if (this.selectedCouponMoney === item.money) {
       return '已使用'
     }
 
-    if (!this.canUseCoupon(limitMoney)) {
-      return '满 ' + limitMoney.toString() + ' 元可用'
+    if (!this.canUseCoupon(item.limitMoney)) {
+      return '满 ' + item.limitMoney.toString() + ' 元可用'
     }
 
     return '选择使用'
   }
 
-  private getCouponButtonColor(money: number, limitMoney: number): string {
+  private getCouponButtonColor(item: CouponInfo): string {
     if (!this.isLogin) {
       return '#C68A4A'
     }
 
-    if (!this.getReceived(money)) {
+    if (!this.getReceived(item.id)) {
       return '#D05A2A'
     }
 
-    if (this.selectedCouponMoney === money) {
+    if (this.selectedCouponMoney === item.money) {
       return '#2E9D52'
     }
 
-    if (!this.canUseCoupon(limitMoney)) {
+    if (!this.canUseCoupon(item.limitMoney)) {
       return '#B8A99A'
     }
 
     return '#6F4E37'
   }
 
-  private handleCouponClick(money: number, title: string, limitMoney: number): void {
+  private handleCouponClick(item: CouponInfo): void {
     if (!this.isLogin) {
       promptAction.showToast({
         message: '请先登录账号'
@@ -103,8 +106,8 @@ struct CouponPage {
       return
     }
 
-    if (!this.getReceived(money)) {
-      this.setReceived(money)
+    if (!this.getReceived(item.id)) {
+      this.setReceived(item.id)
 
       promptAction.showToast({
         message: '领取成功'
@@ -112,17 +115,17 @@ struct CouponPage {
       return
     }
 
-    if (!this.canUseCoupon(limitMoney)) {
+    if (!this.canUseCoupon(item.limitMoney)) {
       promptAction.showToast({
-        message: '当前商品金额不足，满 ' + limitMoney.toString() + ' 元可用'
+        message: '当前商品金额不足，满 ' + item.limitMoney.toString() + ' 元可用'
       })
       return
     }
 
-    if (this.selectedCouponMoney === money) {
+    if (this.selectedCouponMoney === item.money) {
       AlertDialog.show({
         title: '取消使用优惠券',
-        message: '你正在使用「' + title + '」，是否取消使用？',
+        message: '你正在使用「' + item.title + '」，是否取消使用？',
         autoCancel: true,
         alignment: DialogAlignment.Center,
         secondaryButton: {
@@ -148,7 +151,7 @@ struct CouponPage {
 
     AlertDialog.show({
       title: '使用优惠券',
-      message: '是否使用「' + title + '」？结算时将抵扣 ' + money.toString() + ' 元',
+      message: '是否使用「' + item.title + '」？结算时将抵扣 ' + item.money.toString() + ' 元',
       autoCancel: true,
       alignment: DialogAlignment.Center,
       secondaryButton: {
@@ -159,9 +162,9 @@ struct CouponPage {
       primaryButton: {
         value: '确定使用',
         action: () => {
-          this.selectedCouponMoney = money
-          this.selectedCouponTitle = title
-          this.selectedCouponLimit = limitMoney
+          this.selectedCouponMoney = item.money
+          this.selectedCouponTitle = item.title
+          this.selectedCouponLimit = item.limitMoney
 
           promptAction.showToast({
             message: '已选择使用优惠券'
@@ -170,7 +173,6 @@ struct CouponPage {
       }
     })
   }
-
   private goNext(): void {
     if (!this.isLogin) {
       router.pushUrl({
@@ -192,7 +194,7 @@ struct CouponPage {
 
   build() {
     Column() {
-      this.TopBar()
+      AppTopBar({ title: '优惠券' })
 
       Scroll() {
         Column() {
@@ -216,9 +218,9 @@ struct CouponPage {
             this.TotalCard()
           }
 
-          this.CouponCard(8, '新人下单立减券', '满 20 元可用', 20)
-          this.CouponCard(5, '奶茶专区优惠券', '购买奶茶类商品可用，满 20 元可用', 20)
-          this.CouponCard(6, '果茶清爽券', '购买果茶类商品可用，满 20 元可用', 20)
+          ForEach(couponList, (item: CouponInfo) => {
+            this.CouponCard(item)
+          }, (item: CouponInfo) => item.id)
 
           Text(this.isLogin ? (this.cartCount > 0 ? '去结算' : '去点单') : '去登录 / 注册')
             .fontSize(16)
@@ -241,32 +243,6 @@ struct CouponPage {
     .width('100%')
     .height('100%')
     .backgroundColor('#F8F4EF')
-  }
-
-  @Builder
-  TopBar() {
-    Row() {
-      Text('‹')
-        .fontSize(34)
-        .fontColor('#3B2517')
-        .width(42)
-        .height(42)
-        .textAlign(TextAlign.Center)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(21)
-        .onClick(() => {
-          router.back()
-        })
-
-      Text('优惠券')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#3B2517')
-        .margin({ left: 14 })
-        .layoutWeight(1)
-    }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 36, bottom: 10 })
   }
 
   @Builder
@@ -328,10 +304,10 @@ struct CouponPage {
   }
 
   @Builder
-  CouponCard(money: number, title: string, desc: string, limitMoney: number) {
+  CouponCard(item: CouponInfo) {
     Row() {
       Column() {
-        Text('¥' + money.toString())
+        Text('¥' + item.money.toString())
           .fontSize(32)
           .fontWeight(FontWeight.Bold)
           .fontColor('#D05A2A')
@@ -348,21 +324,21 @@ struct CouponPage {
       .borderRadius(24)
 
       Column() {
-        Text(title)
+        Text(item.title)
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#3B2517')
 
-        Text(desc)
+        Text(item.desc)
           .fontSize(13)
           .fontColor('#9B7A5E')
           .margin({ top: 8 })
 
-        Text(this.getCouponButtonText(money, limitMoney))
+        Text(this.getCouponButtonText(item))
           .fontSize(12)
           .fontColor('#FFFFFF')
           .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-          .backgroundColor(this.getCouponButtonColor(money, limitMoney))
+          .backgroundColor(this.getCouponButtonColor(item))
           .borderRadius(14)
           .margin({ top: 12 })
       }
@@ -373,10 +349,10 @@ struct CouponPage {
     .width('88%')
     .padding(16)
     .margin({ top: 18 })
-    .backgroundColor(this.selectedCouponMoney === money ? '#FFF8EE' : '#FFFFFF')
+    .backgroundColor(this.selectedCouponMoney === item.money ? '#FFF8EE' : '#FFFFFF')
     .borderRadius(28)
     .border({
-      width: this.selectedCouponMoney === money ? 2 : 0,
+      width: this.selectedCouponMoney === item.money ? 2 : 0,
       color: '#D05A2A'
     })
     .shadow({
@@ -386,7 +362,7 @@ struct CouponPage {
       offsetY: 5
     })
     .onClick(() => {
-      this.handleCouponClick(money, title, limitMoney)
+      this.handleCouponClick(item)
     })
   }
 }

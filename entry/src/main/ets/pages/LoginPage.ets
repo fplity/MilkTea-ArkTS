@@ -1,5 +1,6 @@
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
+import { AppTopBar } from '../common/AppTopBar'
 
 @Entry
 @Component
@@ -8,6 +9,8 @@ struct LoginPage {
   @State phone: string = ''
   @State password: string = ''
   @State confirmPassword: string = ''
+  @StorageLink('isLogin') isLogin: boolean = false
+  @StorageLink('userPhone') userPhone: string = ''
 
   private submit(): void {
     if (this.phone.trim() === '') {
@@ -46,9 +49,10 @@ struct LoginPage {
       this.isRegister = false
       this.password = ''
       this.confirmPassword = ''
+      return
     } else {
-      AppStorage.SetOrCreate('isLogin', true)
-      AppStorage.SetOrCreate('userPhone', this.phone)
+      this.isLogin = true
+      this.userPhone = this.phone
 
       AlertDialog.show({
         title: '登录成功',
@@ -73,7 +77,7 @@ struct LoginPage {
 
   build() {
     Column() {
-      this.TopBar()
+      AppTopBar({ title: this.isRegister ? '注册' : '登录' })
 
       Column() {
         Text(this.isRegister ? '注册账号' : '登录账号')
@@ -131,32 +135,6 @@ struct LoginPage {
     .width('100%')
     .height('100%')
     .backgroundColor('#F8F4EF')
-  }
-
-  @Builder
-  TopBar() {
-    Row() {
-      Text('‹')
-        .fontSize(34)
-        .fontColor('#3B2517')
-        .width(42)
-        .height(42)
-        .textAlign(TextAlign.Center)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(21)
-        .onClick(() => {
-          router.back()
-        })
-
-      Text(this.isRegister ? '注册' : '登录')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#3B2517')
-        .margin({ left: 14 })
-        .layoutWeight(1)
-    }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 36, bottom: 10 })
   }
 
   @Builder

@@ -1,58 +1,14 @@
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
+import {
+  CartItemInfo,
+  CartProductInfo,
+  CartTotal,
+  getCartProducts as buildCartProducts,
+  getCartTotal as calcCartTotal,
+  getSpecText as buildSpecText
+} from '../common/CartUtils'
 
-interface ProductInfo {
-  id: number
-  name: string
-  category: string
-  price: number
-  image: Resource
-  desc: string
-}
-
-interface CartItemInfo {
-  id: number
-  count: number
-}
-
-interface CartProductInfo {
-  id: number
-  name: string
-  category: string
-  price: number
-  image: Resource
-  desc: string
-  count: number
-}
-
-const productList: ProductInfo[] = [
-  { id: 1, name: '珍珠奶茶', category: '奶茶', price: 18, image: $r('app.media.product1'), desc: '经典奶茶，香浓顺滑' },
-  { id: 2, name: '鲜果百香绿茶', category: '果茶', price: 20, image: $r('app.media.product2'), desc: '百香果香，绿茶清爽' },
-  { id: 3, name: '草莓奶油蛋糕', category: '甜品', price: 22, image: $r('app.media.product3'), desc: '草莓香甜，奶油细腻' },
-  { id: 4, name: '生椰拿铁', category: '咖啡', price: 20, image: $r('app.media.product4'), desc: '椰香浓郁，咖啡顺滑' },
-  { id: 5, name: '冰美式', category: '咖啡', price: 16, image: $r('app.media.product5'), desc: '冰爽提神，口感清爽' },
-  { id: 6, name: '葡萄多多', category: '果茶', price: 22, image: $r('app.media.product6'), desc: '葡萄香甜，酸甜清爽' },
-  { id: 7, name: '芋泥波波奶茶', category: '奶茶', price: 21, image: $r('app.media.product7'), desc: '芋泥绵密，波波Q弹' },
-  { id: 8, name: '茉莉奶绿', category: '奶茶', price: 19, image: $r('app.media.product8'), desc: '茉莉清香，奶绿顺滑' },
-  { id: 9, name: '黑糖珍珠奶茶', category: '奶茶', price: 20, image: $r('app.media.product9'), desc: '黑糖香甜，奶茶顺滑' },
-  { id: 10, name: '奥利奥奶茶', category: '奶茶', price: 19, image: $r('app.media.product10'), desc: '奥利奥碎，奶香浓郁' },
-  { id: 11, name: '抹茶红豆奶茶', category: '奶茶', price: 21, image: $r('app.media.product11'), desc: '抹茶清香，红豆软糯' },
-  { id: 12, name: '经典拿铁', category: '咖啡', price: 18, image: $r('app.media.product12'), desc: '经典拿铁，奶香柔和' },
-  { id: 13, name: '卡布奇诺', category: '咖啡', price: 19, image: $r('app.media.product13'), desc: '奶泡绵密，咖啡香浓' },
-  { id: 14, name: '摩卡咖啡', category: '咖啡', price: 21, image: $r('app.media.product14'), desc: '摩卡香浓，巧克力味' },
-  { id: 15, name: '焦糖玛奇朵', category: '咖啡', price: 22, image: $r('app.media.product15'), desc: '焦糖香甜，咖啡顺滑' },
-  { id: 16, name: '提拉米苏', category: '甜品', price: 28, image: $r('app.media.product16'), desc: '咖啡奶香，入口绵密' },
-  { id: 17, name: '芒果布丁', category: '甜品', price: 18, image: $r('app.media.product17'), desc: '芒果香甜，布丁嫩滑' },
-  { id: 18, name: '巧克力慕斯', category: '甜品', price: 24, image: $r('app.media.product18'), desc: '慕斯丝滑，巧克力香' },
-  { id: 19, name: '原味芝士蛋糕', category: '甜品', price: 22, image: $r('app.media.product19'), desc: '芝士香浓，入口细腻' },
-  { id: 20, name: '奶油泡芙', category: '甜品', price: 16, image: $r('app.media.product20'), desc: '外皮酥香，奶油顺滑' },
-  { id: 21, name: '满杯百香果', category: '果茶', price: 22, image: $r('app.media.product21'), desc: '百香果香，酸甜清爽' },
-  { id: 22, name: '蜜桃乌龙茶', category: '果茶', price: 20, image: $r('app.media.product22'), desc: '蜜桃清甜，乌龙茶香' },
-  { id: 23, name: '柠檬茉莉茶', category: '果茶', price: 18, image: $r('app.media.product23'), desc: '柠檬清爽，茉莉清香' },
-  { id: 24, name: '葡萄芝士茶', category: '果茶', price: 24, image: $r('app.media.product24'), desc: '葡萄香甜，芝士浓郁' },
-  { id: 25, name: '西瓜冰茶', category: '果茶', price: 19, image: $r('app.media.product25'), desc: '西瓜清甜，冰爽解渴' },
-  { id: 26, name: '杨枝甘露', category: '果茶', price: 20, image: $r('app.media.product26'), desc: '芒果清甜，椰香浓郁' }
-]
 
 @Entry
 @Component
@@ -75,57 +31,37 @@ struct CartPage {
     })
   }
 
-  private getProductById(id: number): ProductInfo | undefined {
-    return productList.find((item: ProductInfo) => item.id === id)
-  }
-
   private getCartProducts(): CartProductInfo[] {
-    const result: CartProductInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      const product = this.getProductById(cartItem.id)
-
-      if (product !== undefined && cartItem.count > 0) {
-        result.push({
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          image: product.image,
-          desc: product.desc,
-          count: cartItem.count
-        })
-      }
-    })
-
-    return result
+    return buildCartProducts(this.cartItems)
   }
 
   private refreshCartMoney(): void {
-    let count: number = 0
-    let total: number = 0
+    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
 
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      const product = this.getProductById(cartItem.id)
+    this.cartCount = cartTotalInfo.count
+    this.cartTotal = cartTotalInfo.total
+  }
 
-      if (product !== undefined && cartItem.count > 0) {
-        count += cartItem.count
-        total += product.price * cartItem.count
-      }
-    })
+  private isSameCartItem(cartItem: CartItemInfo, item: CartProductInfo): boolean {
+    return cartItem.id === item.id &&
+      cartItem.temperature === item.temperature &&
+      cartItem.sugar === item.sugar
+  }
 
-    this.cartCount = count
-    this.cartTotal = total
+  private getCartSpecText(item: CartProductInfo): string {
+    return buildSpecText(item.category, item.temperature, item.sugar)
   }
 
   private addItem(item: CartProductInfo): void {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (cartItem.id === item.id) {
+      if (this.isSameCartItem(cartItem, item)) {
         newCartItems.push({
           id: cartItem.id,
-          count: cartItem.count + 1
+          count: cartItem.count + 1,
+          temperature: cartItem.temperature,
+          sugar: cartItem.sugar
         })
       } else {
         newCartItems.push(cartItem)
@@ -140,11 +76,13 @@ struct CartPage {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (cartItem.id === item.id) {
+      if (this.isSameCartItem(cartItem, item)) {
         if (cartItem.count > 1) {
           newCartItems.push({
             id: cartItem.id,
-            count: cartItem.count - 1
+            count: cartItem.count - 1,
+            temperature: cartItem.temperature,
+            sugar: cartItem.sugar
           })
         }
       } else {
@@ -160,7 +98,7 @@ struct CartPage {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (cartItem.id !== item.id) {
+      if (!this.isSameCartItem(cartItem, item)) {
         newCartItems.push(cartItem)
       }
     })
@@ -268,7 +206,7 @@ struct CartPage {
 
             ForEach(this.getCartProducts(), (item: CartProductInfo) => {
               this.CartCard(item)
-            }, (item: CartProductInfo) => item.id.toString() + '_' + item.count.toString())
+            }, (item: CartProductInfo) => item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString())
 
             this.PriceCard()
 
@@ -435,6 +373,14 @@ struct CartPage {
         Text(item.desc)
           .fontSize(12)
           .fontColor('#7A6251')
+          .margin({ top: 6 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+
+        Text(this.getCartSpecText(item))
+          .fontSize(12)
+          .fontColor('#B08A68')
           .margin({ top: 6 })
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })

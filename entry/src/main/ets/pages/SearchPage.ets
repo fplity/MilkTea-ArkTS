@@ -1,62 +1,23 @@
 import router from '@ohos.router'
-
-interface SearchProductData {
-  image: ResourceStr
-  name: string
-  desc: string
-  price: number
-  category: string
-  categoryName: string
-}
+import { ProductInfo, productList } from '../common/ProductData'
 
 @Entry
 @Component
 struct SearchPage {
   @State keyword: string = ''
 
-  private products: SearchProductData[] = [
-    { image: $r('app.media.product1'), name: '黑糖珍珠奶茶', desc: '浓郁奶香，软糯珍珠', price: 18, category: 'milkTea', categoryName: '奶茶' },
-    { image: $r('app.media.product9'), name: '黑糖珍珠鲜奶', desc: '黑糖香浓，鲜奶顺滑', price: 20, category: 'milkTea', categoryName: '奶茶' },
-    { image: $r('app.media.product7'), name: '芋泥波波奶茶', desc: '芋泥绵密，波波软糯', price: 21, category: 'milkTea', categoryName: '奶茶' },
-    { image: $r('app.media.product8'), name: '茉莉奶绿', desc: '茉莉清香，奶味顺滑', price: 19, category: 'milkTea', categoryName: '奶茶' },
-    { image: $r('app.media.product10'), name: '奥利奥奶茶', desc: '奥利奥碎，奶香浓郁', price: 19, category: 'milkTea', categoryName: '奶茶' },
-    { image: $r('app.media.product11'), name: '抹茶红豆奶茶', desc: '抹茶清香，红豆绵密', price: 21, category: 'milkTea', categoryName: '奶茶' },
-
-    { image: $r('app.media.product2'), name: '鲜果百香绿茶', desc: '百香果香，绿茶清爽', price: 20, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product26'), name: '杨枝甘露', desc: '芒果清甜，椰香浓郁', price: 20, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product6'), name: '葡萄多多', desc: '葡萄果香，酸甜清爽', price: 22, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product21'), name: '满杯百香果', desc: '百香果香，酸甜开胃', price: 22, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product22'), name: '蜜桃乌龙茶', desc: '蜜桃清甜，乌龙茶香', price: 20, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product23'), name: '柠檬茉莉茶', desc: '柠檬清爽，茉莉茶香', price: 18, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product24'), name: '葡萄芝士茶', desc: '葡萄清甜，芝士绵密', price: 24, category: 'fruitTea', categoryName: '果茶' },
-    { image: $r('app.media.product25'), name: '西瓜冰茶', desc: '西瓜清甜，冰爽解渴', price: 19, category: 'fruitTea', categoryName: '果茶' },
-
-    { image: $r('app.media.product4'), name: '生椰拿铁', desc: '椰香浓郁，咖啡顺滑', price: 20, category: 'coffee', categoryName: '咖啡' },
-    { image: $r('app.media.product12'), name: '经典拿铁', desc: '咖啡醇香，奶香顺滑', price: 18, category: 'coffee', categoryName: '咖啡' },
-    { image: $r('app.media.product13'), name: '卡布奇诺', desc: '奶泡绵密，咖啡香醇', price: 19, category: 'coffee', categoryName: '咖啡' },
-    { image: $r('app.media.product14'), name: '摩卡咖啡', desc: '巧克力香，咖啡浓郁', price: 21, category: 'coffee', categoryName: '咖啡' },
-    { image: $r('app.media.product15'), name: '焦糖玛奇朵', desc: '焦糖香甜，奶泡顺滑', price: 22, category: 'coffee', categoryName: '咖啡' },
-    { image: $r('app.media.product5'), name: '冰美式', desc: '清爽提神，咖啡香浓', price: 16, category: 'coffee', categoryName: '咖啡' },
-
-    { image: $r('app.media.product3'), name: '草莓奶油蛋糕', desc: '草莓酸甜，奶油细腻', price: 22, category: 'dessert', categoryName: '甜品' },
-    { image: $r('app.media.product16'), name: '提拉米苏', desc: '咖啡香气，奶酪绵密', price: 28, category: 'dessert', categoryName: '甜品' },
-    { image: $r('app.media.product17'), name: '芒果布丁', desc: '芒果香甜，口感嫩滑', price: 18, category: 'dessert', categoryName: '甜品' },
-    { image: $r('app.media.product18'), name: '巧克力慕斯', desc: '巧克力浓郁，慕斯细腻', price: 24, category: 'dessert', categoryName: '甜品' },
-    { image: $r('app.media.product19'), name: '原味芝士蛋糕', desc: '芝士浓郁，口感绵密', price: 22, category: 'dessert', categoryName: '甜品' },
-    { image: $r('app.media.product20'), name: '奶油泡芙', desc: '外皮酥软，奶油香甜', price: 16, category: 'dessert', categoryName: '甜品' }
-  ]
-
-  private getSearchProducts(): SearchProductData[] {
+  private getSearchProducts(): ProductInfo[] {
     let text: string = this.keyword.trim()
 
     if (text === '') {
-      return this.products
+      return productList
     }
 
-    return this.products.filter((item: SearchProductData) => {
+    return productList.filter((item: ProductInfo) => {
       return item.name.indexOf(text) !== -1 ||
         item.desc.indexOf(text) !== -1 ||
-        item.categoryName.indexOf(text) !== -1
+        item.category.indexOf(text) !== -1 ||
+        item.categoryCode.indexOf(text) !== -1
     })
   }
 
@@ -69,9 +30,9 @@ struct SearchPage {
           if (this.getSearchProducts().length === 0) {
             this.EmptyResult()
           } else {
-            ForEach(this.getSearchProducts(), (item: SearchProductData) => {
+            ForEach(this.getSearchProducts(), (item: ProductInfo) => {
               this.ProductCard(item)
-            }, (item: SearchProductData) => item.name)
+            }, (item: ProductInfo) => item.id.toString())
           }
 
           Blank()
@@ -152,7 +113,7 @@ struct SearchPage {
   }
 
   @Builder
-  ProductCard(item: SearchProductData) {
+  ProductCard(item: ProductInfo) {
     Row() {
       Image(item.image)
         .width(88)
@@ -169,7 +130,7 @@ struct SearchPage {
             .fontColor('#3B2517')
             .layoutWeight(1)
 
-          Text(item.categoryName)
+          Text(item.category)
             .fontSize(12)
             .fontColor('#FFFFFF')
             .padding({ left: 8, right: 8, top: 3, bottom: 3 })
@@ -184,7 +145,7 @@ struct SearchPage {
           .margin({ top: 8 })
 
         Row() {
-          Text('¥' + item.price)
+          Text('¥' + item.price.toString())
             .fontSize(22)
             .fontWeight(FontWeight.Bold)
             .fontColor('#D05A2A')
@@ -200,7 +161,7 @@ struct SearchPage {
               router.pushUrl({
                 url: 'pages/MenuPage',
                 params: {
-                  category: item.category
+                  category: item.categoryCode
                 }
               })
             })
@@ -223,7 +184,16 @@ struct SearchPage {
       offsetX: 0,
       offsetY: 5
     })
+    .onClick(() => {
+      router.pushUrl({
+        url: 'pages/DetailPage',
+        params: {
+          id: item.id
+        }
+      })
+    })
   }
+
 
   @Builder
   EmptyResult() {

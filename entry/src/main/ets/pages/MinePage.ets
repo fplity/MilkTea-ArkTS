@@ -1,16 +1,13 @@
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
-import { AppInfo } from '../common/AppInfo';
+import { AppInfo } from '../common/AppInfo'
+import { CouponInfo, couponList } from '../common/CouponData'
+import { BottomNavBar } from '../common/BottomNavBar'
+
 interface SettingItem {
   icon: string
   title: string
   desc: string
-}
-
-interface CouponItem {
-  title: string
-  desc: string
-  tag: string
 }
 
 interface PaidOrderInfo {
@@ -33,7 +30,6 @@ struct MinePage {
   @State userName: string = '小帅'
   @State memberLevel: string = '黄金会员'
   @State points: number = 1280
-  @State couponCount: number = 5
 
   @StorageLink('paidOrders') paidOrders: PaidOrderInfo[] = []
 
@@ -44,24 +40,6 @@ struct MinePage {
     { icon: '🛡️', title: '账号安全', desc: '密码与隐私设置' },
     { icon: '🎧', title: '客服中心', desc: '常见问题与在线客服' }
   ]
-
-  private couponList: CouponItem[] = [
-    { title: '满 30 减 5', desc: '奶茶、果茶可用', tag: '可用' },
-    { title: '咖啡立减 3 元', desc: '咖啡专区专享', tag: '可用' },
-    { title: '甜品 9 折券', desc: '甜品专区专享', tag: '可用' }
-  ]
-
-  private goHome(): void {
-    router.replaceUrl({
-      url: 'pages/HomePage'
-    })
-  }
-
-  private goMenu(): void {
-    router.pushUrl({
-      url: 'pages/MenuPage'
-    })
-  }
 
   private goCoupon(): void {
     router.pushUrl({
@@ -103,7 +81,7 @@ struct MinePage {
       }
       .layoutWeight(1)
 
-      this.BottomNav()
+      BottomNavBar({ current: 'mine' })
     }
     .width('100%')
     .height('100%')
@@ -316,7 +294,7 @@ struct MinePage {
   @Builder
   DataCard() {
     Row() {
-      this.DataItem('优惠券', this.couponCount.toString(), '张', true)
+      this.DataItem('优惠券', couponList.length.toString(), '张', true)
       this.DataItem('积分', this.points.toString(), '分', false)
       this.DataItem('订单', this.paidOrders.length.toString(), '单', false)
     }
@@ -532,9 +510,9 @@ struct MinePage {
       .width('100%')
       .margin({ bottom: 14 })
 
-      ForEach(this.couponList, (item: CouponItem) => {
+      ForEach(couponList, (item: CouponInfo) => {
         this.CouponItemCard(item)
-      }, (item: CouponItem) => item.title)
+      }, (item: CouponInfo) => item.id)
     }
     .width('92%')
     .padding(18)
@@ -553,7 +531,7 @@ struct MinePage {
   }
 
   @Builder
-  CouponItemCard(item: CouponItem) {
+  CouponItemCard(item: CouponInfo) {
     Row() {
       Column() {
         Text(item.title)
@@ -569,7 +547,7 @@ struct MinePage {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      Text(item.tag)
+      Text('¥' + item.money.toString())
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
@@ -742,46 +720,4 @@ struct MinePage {
     .alignItems(HorizontalAlign.Center)
     .margin({ top: 22, bottom: 8 })
   }
-
-  @Builder
-  BottomNav() {
-    Row() {
-      this.BottomItem($r('app.media.home'), '首页', false, 'pages/HomePage')
-      this.BottomItem($r('app.media.menu'), '点单', false, 'pages/MenuPage')
-      this.BottomItem($r('app.media.cart'), '购物车', false, 'pages/MenuPage')
-      this.BottomItem($r('app.media.mine'), '我的', true, '')
-    }
-    .width('100%')
-    .height(72)
-    .padding({ left: 8, right: 8 })
-    .backgroundColor('#FFFFFF')
-  }
-
-  @Builder
-  BottomItem(icon: ResourceStr, title: string, selected: boolean, pageUrl: string) {
-    Column() {
-      Image(icon)
-        .width(24)
-        .height(24)
-        .objectFit(ImageFit.Contain)
-        .opacity(selected ? 1 : 0.5)
-
-      Text(title)
-        .fontSize(12)
-        .fontColor(selected ? '#6F4E37' : '#B8A99A')
-        .margin({ top: 4 })
-
-    }
-    .layoutWeight(1)
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .onClick(() => {
-      if (pageUrl !== '') {
-        router.pushUrl({
-          url: pageUrl
-        })
-      }
-    })
-  }
-
 }

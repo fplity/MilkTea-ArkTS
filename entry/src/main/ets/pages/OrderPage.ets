@@ -1,33 +1,16 @@
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
+import { StoreInfo, storeList, getStoreById } from '../common/StoreData'
+import {
+  CartItemInfo,
+  CartProductInfo,
+  CartTotal,
+  getCartProducts as buildCartProducts,
+  getCartTotal as calcCartTotal,
+  getSpecText as buildSpecText
+} from '../common/CartUtils'
 
-interface ProductInfo {
-  id: number
-  name: string
-  category: string
-  price: number
-  image: Resource
-  desc: string
-}
 
-interface CartItemInfo {
-  id: number
-  count: number
-  temperature: string
-  sugar: string
-}
-
-interface OrderProductInfo {
-  id: number
-  name: string
-  category: string
-  price: number
-  image: Resource
-  desc: string
-  count: number
-  temperature: string
-  sugar: string
-}
 
 interface PaidOrderInfo {
   orderNo: string
@@ -49,79 +32,6 @@ interface OrderParams {
   deliveryAddress?: string
   deliveryStoreId?: number
 }
-
-interface StoreInfo {
-  id: number
-  name: string
-  address: string
-  distance: number
-  latitude: number
-  longitude: number
-  openTime: string
-  phone: string
-}
-
-const productList: ProductInfo[] = [
-  { id: 1, name: '珍珠奶茶', category: '奶茶', price: 18, image: $r('app.media.product1'), desc: '经典奶茶，香浓顺滑' },
-  { id: 2, name: '鲜果百香绿茶', category: '果茶', price: 20, image: $r('app.media.product2'), desc: '百香果香，绿茶清爽' },
-  { id: 3, name: '草莓奶油蛋糕', category: '甜品', price: 22, image: $r('app.media.product3'), desc: '草莓香甜，奶油细腻' },
-  { id: 4, name: '生椰拿铁', category: '咖啡', price: 20, image: $r('app.media.product4'), desc: '椰香浓郁，咖啡顺滑' },
-  { id: 5, name: '冰美式', category: '咖啡', price: 16, image: $r('app.media.product5'), desc: '冰爽提神，口感清爽' },
-  { id: 6, name: '葡萄多多', category: '果茶', price: 22, image: $r('app.media.product6'), desc: '葡萄香甜，酸甜清爽' },
-  { id: 7, name: '芋泥波波奶茶', category: '奶茶', price: 21, image: $r('app.media.product7'), desc: '芋泥绵密，波波Q弹' },
-  { id: 8, name: '茉莉奶绿', category: '奶茶', price: 19, image: $r('app.media.product8'), desc: '茉莉清香，奶绿顺滑' },
-  { id: 9, name: '黑糖珍珠奶茶', category: '奶茶', price: 20, image: $r('app.media.product9'), desc: '黑糖香甜，奶茶顺滑' },
-  { id: 10, name: '奥利奥奶茶', category: '奶茶', price: 19, image: $r('app.media.product10'), desc: '奥利奥碎，奶香浓郁' },
-  { id: 11, name: '抹茶红豆奶茶', category: '奶茶', price: 21, image: $r('app.media.product11'), desc: '抹茶清香，红豆软糯' },
-  { id: 12, name: '经典拿铁', category: '咖啡', price: 18, image: $r('app.media.product12'), desc: '经典拿铁，奶香柔和' },
-  { id: 13, name: '卡布奇诺', category: '咖啡', price: 19, image: $r('app.media.product13'), desc: '奶泡绵密，咖啡香浓' },
-  { id: 14, name: '摩卡咖啡', category: '咖啡', price: 21, image: $r('app.media.product14'), desc: '摩卡香浓，巧克力味' },
-  { id: 15, name: '焦糖玛奇朵', category: '咖啡', price: 22, image: $r('app.media.product15'), desc: '焦糖香甜，咖啡顺滑' },
-  { id: 16, name: '提拉米苏', category: '甜品', price: 28, image: $r('app.media.product16'), desc: '咖啡奶香，入口绵密' },
-  { id: 17, name: '芒果布丁', category: '甜品', price: 18, image: $r('app.media.product17'), desc: '芒果香甜，布丁嫩滑' },
-  { id: 18, name: '巧克力慕斯', category: '甜品', price: 24, image: $r('app.media.product18'), desc: '慕斯丝滑，巧克力香' },
-  { id: 19, name: '原味芝士蛋糕', category: '甜品', price: 22, image: $r('app.media.product19'), desc: '芝士香浓，入口细腻' },
-  { id: 20, name: '奶油泡芙', category: '甜品', price: 16, image: $r('app.media.product20'), desc: '外皮酥香，奶油顺滑' },
-  { id: 21, name: '满杯百香果', category: '果茶', price: 22, image: $r('app.media.product21'), desc: '百香果香，酸甜清爽' },
-  { id: 22, name: '蜜桃乌龙茶', category: '果茶', price: 20, image: $r('app.media.product22'), desc: '蜜桃清甜，乌龙茶香' },
-  { id: 23, name: '柠檬茉莉茶', category: '果茶', price: 18, image: $r('app.media.product23'), desc: '柠檬清爽，茉莉清香' },
-  { id: 24, name: '葡萄芝士茶', category: '果茶', price: 24, image: $r('app.media.product24'), desc: '葡萄香甜，芝士浓郁' },
-  { id: 25, name: '西瓜冰茶', category: '果茶', price: 19, image: $r('app.media.product25'), desc: '西瓜清甜，冰爽解渴' },
-  { id: 26, name: '杨枝甘露', category: '果茶', price: 20, image: $r('app.media.product26'), desc: '芒果清甜，椰香浓郁' }
-]
-
-const storeList: StoreInfo[] = [
-  {
-    id: 1,
-    name: '星野奶茶 松山湖校区店',
-    address: '广东科技学院松山湖校区南门附近',
-    distance: 0.8,
-    latitude: 22.9021,
-    longitude: 113.8806,
-    openTime: '09:00-22:00',
-    phone: '18800010001'
-  },
-  {
-    id: 2,
-    name: '星野奶茶 大岭山店',
-    address: '东莞市大岭山镇教育路88号',
-    distance: 2.4,
-    latitude: 22.9125,
-    longitude: 113.8632,
-    openTime: '10:00-22:30',
-    phone: '18800010002'
-  },
-  {
-    id: 3,
-    name: '星野奶茶 松湖万科店',
-    address: '东莞松山湖万科生活广场一楼',
-    distance: 4.6,
-    latitude: 22.9288,
-    longitude: 113.8915,
-    openTime: '09:30-23:00',
-    phone: '18800010003'
-  }
-]
 
 @Entry
 @Component
@@ -193,12 +103,9 @@ struct OrderPage {
     }
   }
 
-  private getStoreById(id: number): StoreInfo | undefined {
-    return storeList.find((item: StoreInfo) => item.id === id)
-  }
-
   private getSelectedStore(): StoreInfo {
-    const store = this.getStoreById(this.selectedStoreId)
+    const store: StoreInfo | undefined = getStoreById(this.selectedStoreId)
+
     if (store !== undefined) {
       return store
     }
@@ -207,7 +114,8 @@ struct OrderPage {
   }
 
   private getDeliveryStore(): StoreInfo {
-    const store = this.getStoreById(this.deliveryStoreId)
+    const store: StoreInfo | undefined = getStoreById(this.deliveryStoreId)
+
     if (store !== undefined) {
       return store
     }
@@ -243,57 +151,19 @@ struct OrderPage {
     return this.getSelectedStore().address
   }
 
-  private getProductById(id: number): ProductInfo | undefined {
-    return productList.find((item: ProductInfo) => item.id === id)
+  private getSpecText(item: CartProductInfo): string {
+    return buildSpecText(item.category, item.temperature, item.sugar)
   }
 
-  private getSpecText(item: OrderProductInfo): string {
-    if (item.category === '甜品') {
-      return '默认规格'
-    }
-
-    return item.temperature + ' / ' + item.sugar
-  }
-
-  private getOrderProducts(): OrderProductInfo[] {
-    const result: OrderProductInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      const product = this.getProductById(cartItem.id)
-
-      if (product !== undefined && cartItem.count > 0) {
-        result.push({
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          image: product.image,
-          desc: product.desc,
-          count: cartItem.count,
-          temperature: cartItem.temperature,
-          sugar: cartItem.sugar
-        })
-      }
-    })
-
-    return result
+  private getOrderProducts(): CartProductInfo[] {
+    return buildCartProducts(this.cartItems)
   }
 
   private refreshOrderMoney(): void {
-    let count: number = 0
-    let total: number = 0
+    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
 
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      const product = this.getProductById(cartItem.id)
-
-      if (product !== undefined && cartItem.count > 0) {
-        count += cartItem.count
-        total += product.price * cartItem.count
-      }
-    })
-
-    this.cartCount = count
-    this.cartTotal = total
+    this.cartCount = cartTotalInfo.count
+    this.cartTotal = cartTotalInfo.total
   }
 
   private getRealCouponMoney(): number {
@@ -338,22 +208,12 @@ struct OrderPage {
   }
 
   private getOrderProductText(): string {
-    const products: OrderProductInfo[] = this.getOrderProducts()
+    const products: CartProductInfo[] = this.getOrderProducts()
     let text: string = ''
 
-    products.forEach((item: OrderProductInfo, index: number) => {
-      if (index < 2) {
-        if (text !== '') {
-          text += '，'
-        }
-
-        text += item.name + ' x' + item.count.toString()
-      }
+    products.forEach((item: CartProductInfo) => {
+      text += item.name + '（' + this.getSpecText(item) + '）×' + item.count.toString() + ' '
     })
-
-    if (products.length > 2) {
-      text += ' 等' + this.cartCount.toString() + '件'
-    }
 
     return text
   }
@@ -491,11 +351,9 @@ struct OrderPage {
             this.TakeWayCard()
             this.OrderProductTitle()
 
-            ForEach(this.getOrderProducts(), (item: OrderProductInfo) => {
+            ForEach(this.getOrderProducts(), (item: CartProductInfo) => {
               this.OrderProductCard(item)
-            }, (item: OrderProductInfo) => {
-              return item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString()
-            })
+            }, (item: CartProductInfo) => item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString())
 
             this.RemarkCard()
             this.PayWayCard()
@@ -772,7 +630,7 @@ struct OrderPage {
   }
 
   @Builder
-  OrderProductCard(item: OrderProductInfo) {
+  OrderProductCard(item: CartProductInfo) {
     Row() {
       Image(item.image)
         .width(76)
