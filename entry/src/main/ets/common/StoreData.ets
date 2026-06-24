@@ -51,6 +51,12 @@ export function getStoreById(id: number): StoreInfo | undefined {
   return storeList.find((item) => item.id === id)
 }
 
+// 根据 id 获取门店，找不到时回到第一个门店
+export function getStoreByIdOrFirst(id: number): StoreInfo {
+  const store: StoreInfo | undefined = getStoreById(id)
+  return store !== undefined ? store : storeList[0]
+}
+
 // 获取距离最近的门店
 export function getNearestStore(): StoreInfo {
   let nearest = storeList[0]
@@ -60,4 +66,10 @@ export function getNearestStore(): StoreInfo {
     }
   })
   return nearest
+}
+
+// 根据 id 获取门店，找不到时回到最近门店
+export function getStoreByIdOrNearest(id: number): StoreInfo {
+  const store: StoreInfo | undefined = getStoreById(id)
+  return store !== undefined ? store : getNearestStore()
 }

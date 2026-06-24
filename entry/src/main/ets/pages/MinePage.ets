@@ -1,8 +1,8 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
 import { AppInfo } from '../common/AppInfo'
 import { CouponInfo, couponList } from '../common/CouponData'
 import { BottomNavBar } from '../common/BottomNavBar'
+import { showToast } from '../common/AppToast'
 
 interface SettingItem {
   icon: string
@@ -44,12 +44,6 @@ struct MinePage {
   private goCoupon(): void {
     router.pushUrl({
       url: 'pages/CouponPage'
-    })
-  }
-
-  private showTip(message: string): void {
-    promptAction.showToast({
-      message: message
     })
   }
 
@@ -121,7 +115,7 @@ struct MinePage {
         offsetY: 4
       })
       .onClick(() => {
-        this.showTip('进入设置')
+        showToast('进入设置')
       })
     }
     .width('100%')
@@ -197,7 +191,7 @@ struct MinePage {
       offsetY: 6
     })
     .onClick(() => {
-      this.showTip('查看个人资料')
+      showToast('查看个人资料')
     })
   }
 
@@ -337,7 +331,7 @@ struct MinePage {
       if (isCoupon) {
         this.goCoupon()
       } else {
-        this.showTip(title)
+        showToast(title)
       }
     })
   }
@@ -609,7 +603,7 @@ struct MinePage {
           .borderRadius(19)
           .onClick(() => {
             this.points += 20
-            this.showTip('签到成功，积分 +20')
+            showToast('签到成功，积分 +20')
           })
       }
       .width('100%')
@@ -695,7 +689,7 @@ struct MinePage {
       if (this.isCouponText(item.title, item.desc)) {
         this.goCoupon()
       } else {
-        this.showTip(item.title)
+        showToast(item.title)
       }
     })
   }

@@ -1,15 +1,27 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
-import { ProductInfo, productList, getProductById, getProductsByCategory } from '../common/ProductData'
-import { StoreInfo, storeList, getStoreById, getNearestStore } from '../common/StoreData'
 import {
+  ProductInfo,
+  productList,
+  getCategoryName,
+  getProductById,
+  getProductByIdOrFirst,
+  getProductsByCategory
+} from '../common/ProductData'
+import { StoreInfo, storeList, getNearestStore, getStoreByIdOrFirst, getStoreByIdOrNearest } from '../common/StoreData'
+import {
+  addCartItem,
   CartItemInfo,
   CartProductInfo,
   CartTotal,
+  deleteCartItem as removeCartItem,
+  getCartProductKey,
   getCartProducts as buildCartProducts,
   getCartTotal as calcCartTotal,
+  getProductTotalCount as calcProductTotalCount,
+  updateCartItemCount,
   getSpecText
 } from '../common/CartUtils'
+import { showToast } from '../common/AppToast'
 
 interface MenuParams {
   category?: string
@@ -57,7 +69,7 @@ struct MenuPage {
     const params = router.getParams() as MenuParams
 
     if (params && params.category !== undefined) {
-      this.currentCategory = this.toCategoryName(params.category)
+      this.currentCategory = getCategoryName(params.category)
     }
 
     if (params && params.productId !== undefined) {
@@ -73,58 +85,20 @@ struct MenuPage {
     this.refreshCartMoney()
   }
 
-  private toCategoryName(category: string): string {
-    if (category === 'milkTea') {
-      return '奶茶'
-    }
-
-    if (category === 'coffee') {
-      return '咖啡'
-    }
-
-    if (category === 'dessert') {
-      return '甜品'
-    }
-
-    if (category === 'fruitTea') {
-      return '果茶'
-    }
-
-    return category
-  }
-
   private getCurrentProducts(): ProductInfo[] {
     return getProductsByCategory(this.currentCategory)
   }
 
   private getSelectedProduct(): ProductInfo {
-    const product: ProductInfo | undefined = getProductById(this.selectedProductId)
-
-    if (product !== undefined) {
-      return product
-    }
-
-    return productList[0]
+    return getProductByIdOrFirst(this.selectedProductId)
   }
 
   private getSelectedStore(): StoreInfo {
-    const store: StoreInfo | undefined = getStoreById(this.selectedStoreId)
-
-    if (store !== undefined) {
-      return store
-    }
-
-    return storeList[0]
+    return getStoreByIdOrFirst(this.selectedStoreId)
   }
 
   private getDeliveryStore(): StoreInfo {
-    const store: StoreInfo | undefined = getStoreById(this.deliveryStoreId)
-
-    if (store !== undefined) {
-      return store
-    }
-
-    return getNearestStore()
+    return getStoreByIdOrNearest(this.deliveryStoreId)
   }
 
   private getCompactDeliveryText(): string {
@@ -144,12 +118,6 @@ struct MenuPage {
     return getSpecText(product.category, this.selectedTemperature, this.selectedSugar)
   }
 
-  private showToast(message: string): void {
-    promptAction.showToast({
-      message: message
-    })
-  }
-
   private refreshCartMoney(): void {
     const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
 
@@ -161,28 +129,8 @@ struct MenuPage {
     return item.category === '甜品'
   }
 
-  private isSameCartItem(cartItem: CartItemInfo, item: CartProductInfo): boolean {
-    return cartItem.id === item.id &&
-      cartItem.temperature === item.temperature &&
-      cartItem.sugar === item.sugar
-  }
-
-  private isSameSelectedSpec(cartItem: CartItemInfo, product: ProductInfo): boolean {
-    return cartItem.id === product.id &&
-      cartItem.temperature === this.selectedTemperature &&
-      cartItem.sugar === this.selectedSugar
-  }
-
   private getProductTotalCount(id: number): number {
-    let count: number = 0
-
-    this.cartItems.forEach((item: CartItemInfo) => {
-      if (item.id === id && item.count > 0) {
-        count += item.count
-      }
-    })
-
-    return count
+    return calcProductTotalCount(this.cartItems, id)
   }
 
   private changeOrderType(type: string): void {
@@ -201,7 +149,7 @@ struct MenuPage {
     this.showStoreSheet = false
     this.orderPanelCollapsed = true
 
-    this.showToast('已选择 ' + item.name)
+    showToast('已选择 ' + item.name)
   }
 
   private closeSheet(type: string): void {
@@ -231,7 +179,7 @@ struct MenuPage {
         id: item.id
       }
     }).catch(() => {
-      this.showToast('详情页跳转失败，请检查 DetailPage 是否注册')
+      showToast('详情页跳转失败，请检查 DetailPage 是否注册')
     })
   }
 
@@ -264,87 +212,35 @@ struct MenuPage {
 
   private addCartWithSpec(): void {
     const product = this.getSelectedProduct()
-    let hasItem: boolean = false
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((item: CartItemInfo) => {
-      if (this.isSameSelectedSpec(item, product)) {
-        hasItem = true
-        newCartItems.push({
-          id: item.id,
-          count: item.count + this.selectedCount,
-          temperature: item.temperature,
-          sugar: item.sugar
-        })
-      } else {
-        newCartItems.push(item)
-      }
-    })
-
-    if (!hasItem) {
-      newCartItems.push({
-        id: product.id,
-        count: this.selectedCount,
-        temperature: this.selectedTemperature,
-        sugar: this.selectedSugar
-      })
-    }
-
-    this.cartItems = newCartItems
+    this.cartItems = addCartItem(
+      this.cartItems,
+      product.id,
+      this.selectedTemperature,
+      this.selectedSugar,
+      this.selectedCount
+    )
     this.refreshCartMoney()
     this.showSpecSheet = false
     this.orderPanelCollapsed = true
 
-    this.showToast(product.name + ' 已加入购物车')
+    showToast(product.name + ' 已加入购物车')
   }
 
   private updateCartItem(item: CartProductInfo, type: string): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (this.isSameCartItem(cartItem, item)) {
-        if (type === 'add') {
-          newCartItems.push({
-            id: cartItem.id,
-            count: cartItem.count + 1,
-            temperature: cartItem.temperature,
-            sugar: cartItem.sugar
-          })
-        } else if (cartItem.count > 1) {
-          newCartItems.push({
-            id: cartItem.id,
-            count: cartItem.count - 1,
-            temperature: cartItem.temperature,
-            sugar: cartItem.sugar
-          })
-        }
-      } else {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
+    this.cartItems = updateCartItemCount(this.cartItems, item, type)
     this.refreshCartMoney()
   }
 
   private deleteCartItem(item: CartProductInfo): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (!this.isSameCartItem(cartItem, item)) {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
+    this.cartItems = removeCartItem(this.cartItems, item)
     this.refreshCartMoney()
 
-    this.showToast(item.name + ' 已删除')
+    showToast(item.name + ' 已删除')
   }
 
   private clearCart(): void {
     if (this.cartCount === 0) {
-      this.showToast('购物车已经是空的')
+      showToast('购物车已经是空的')
       return
     }
 
@@ -352,7 +248,7 @@ struct MenuPage {
     this.cartCount = 0
     this.cartTotal = 0
 
-    this.showToast('购物车已清空')
+    showToast('购物车已清空')
   }
 
   private getCartSheetHeight(): string {
@@ -407,12 +303,12 @@ struct MenuPage {
 
   private checkout(): void {
     if (this.cartCount === 0) {
-      this.showToast('请先选择商品')
+      showToast('请先选择商品')
       return
     }
 
     if (this.orderType === '外卖' && this.deliveryAddress.trim().length === 0) {
-      this.showToast('请先填写配送地址')
+      showToast('请先填写配送地址')
       return
     }
 
@@ -1439,9 +1335,7 @@ struct MenuPage {
           Column() {
             ForEach(this.getCartProducts(), (item: CartProductInfo) => {
               this.CartSheetItem(item)
-            }, (item: CartProductInfo) => {
-              return item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString()
-            })
+            }, (item: CartProductInfo) => getCartProductKey(item))
           }
           .width('100%')
         }

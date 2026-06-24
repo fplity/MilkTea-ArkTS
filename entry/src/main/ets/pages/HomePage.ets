@@ -1,11 +1,16 @@
 import router from '@ohos.router'
-import { ProductInfo, getProductById } from '../common/ProductData'
+import { ProductInfo, getProductsByIds } from '../common/ProductData'
 import { BottomNavBar } from '../common/BottomNavBar'
 
 interface CategoryItemData {
   icon: ResourceStr
   title: string
   category: string
+}
+
+interface BannerItemData {
+  image: ResourceStr
+  productId: number
 }
 
 
@@ -19,6 +24,12 @@ struct HomePage {
     { icon: $r('app.media.dessert'), title: '甜品', category: 'dessert' }
   ]
 
+  private banners: BannerItemData[] = [
+    { image: $r('app.media.banner1'), productId: 26 },
+    { image: $r('app.media.banner2'), productId: 6 },
+    { image: $r('app.media.banner3'), productId: 4 }
+  ]
+
   private recommendIds: number[] = [
     1, 9, 7, 8, 10, 11,
     2, 26, 6, 21, 22, 23, 24, 25,
@@ -27,17 +38,7 @@ struct HomePage {
   ]
 
   private getRecommendProducts(): ProductInfo[] {
-    const result: ProductInfo[] = []
-
-    this.recommendIds.forEach((id: number) => {
-      const product: ProductInfo | undefined = getProductById(id)
-
-      if (product !== undefined) {
-        result.push(product)
-      }
-    })
-
-    return result
+    return getProductsByIds(this.recommendIds)
   }
 
   private goProductBuy(productId: number): void {
@@ -118,32 +119,16 @@ struct HomePage {
   @Builder
   BannerArea() {
     Swiper() {
-      Image($r('app.media.banner1'))
-        .width('100%')
-        .height(170)
-        .borderRadius(28)
-        .objectFit(ImageFit.Fill)
-        .onClick(() => {
-          this.goProductBuy(26)
-        })
-
-      Image($r('app.media.banner2'))
-        .width('100%')
-        .height(170)
-        .borderRadius(28)
-        .objectFit(ImageFit.Fill)
-        .onClick(() => {
-          this.goProductBuy(6)
-        })
-
-      Image($r('app.media.banner3'))
-        .width('100%')
-        .height(170)
-        .borderRadius(28)
-        .objectFit(ImageFit.Fill)
-        .onClick(() => {
-          this.goProductBuy(4)
-        })
+      ForEach(this.banners, (item: BannerItemData) => {
+        Image(item.image)
+          .width('100%')
+          .height(170)
+          .borderRadius(28)
+          .objectFit(ImageFit.Fill)
+          .onClick(() => {
+            this.goProductBuy(item.productId)
+          })
+      }, (item: BannerItemData) => item.productId.toString())
     }
     .width('92%')
     .height(170)

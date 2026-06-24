@@ -1,13 +1,16 @@
 import router from '@ohos.router'
-import promptAction from '@ohos.promptAction'
 import {
   CartItemInfo,
   CartProductInfo,
   CartTotal,
+  deleteCartItem as removeCartItem,
+  getCartProductKey,
   getCartProducts as buildCartProducts,
   getCartTotal as calcCartTotal,
-  getSpecText as buildSpecText
+  getSpecText as buildSpecText,
+  updateCartItemCount
 } from '../common/CartUtils'
+import { showToast } from '../common/AppToast'
 
 
 @Entry
@@ -42,80 +45,21 @@ struct CartPage {
     this.cartTotal = cartTotalInfo.total
   }
 
-  private isSameCartItem(cartItem: CartItemInfo, item: CartProductInfo): boolean {
-    return cartItem.id === item.id &&
-      cartItem.temperature === item.temperature &&
-      cartItem.sugar === item.sugar
-  }
-
-  private getCartSpecText(item: CartProductInfo): string {
-    return buildSpecText(item.category, item.temperature, item.sugar)
-  }
-
-  private addItem(item: CartProductInfo): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (this.isSameCartItem(cartItem, item)) {
-        newCartItems.push({
-          id: cartItem.id,
-          count: cartItem.count + 1,
-          temperature: cartItem.temperature,
-          sugar: cartItem.sugar
-        })
-      } else {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
-    this.refreshCartMoney()
-  }
-
-  private reduceItem(item: CartProductInfo): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (this.isSameCartItem(cartItem, item)) {
-        if (cartItem.count > 1) {
-          newCartItems.push({
-            id: cartItem.id,
-            count: cartItem.count - 1,
-            temperature: cartItem.temperature,
-            sugar: cartItem.sugar
-          })
-        }
-      } else {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
+  private updateItem(item: CartProductInfo, type: string): void {
+    this.cartItems = updateCartItemCount(this.cartItems, item, type)
     this.refreshCartMoney()
   }
 
   private deleteItem(item: CartProductInfo): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (!this.isSameCartItem(cartItem, item)) {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
+    this.cartItems = removeCartItem(this.cartItems, item)
     this.refreshCartMoney()
 
-    promptAction.showToast({
-      message: item.name + ' 已删除'
-    })
+    showToast(item.name + ' 已删除')
   }
 
   private clearCart(): void {
     if (this.cartCount === 0) {
-      promptAction.showToast({
-        message: '购物车已经是空的'
-      })
+      showToast('购物车已经是空的')
       return
     }
 
@@ -123,16 +67,12 @@ struct CartPage {
     this.cartCount = 0
     this.cartTotal = 0
 
-    promptAction.showToast({
-      message: '购物车已清空'
-    })
+    showToast('购物车已清空')
   }
 
   private checkout(): void {
     if (this.cartCount === 0) {
-      promptAction.showToast({
-        message: '请先选择商品'
-      })
+      showToast('请先选择商品')
       return
     }
 
@@ -206,7 +146,7 @@ struct CartPage {
 
             ForEach(this.getCartProducts(), (item: CartProductInfo) => {
               this.CartCard(item)
-            }, (item: CartProductInfo) => item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString())
+            }, (item: CartProductInfo) => getCartProductKey(item))
 
             this.PriceCard()
 
@@ -378,7 +318,7 @@ struct CartPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
 
-        Text(this.getCartSpecText(item))
+        Text(buildSpecText(item.category, item.temperature, item.sugar))
           .fontSize(12)
           .fontColor('#B08A68')
           .margin({ top: 6 })
@@ -405,7 +345,7 @@ struct CartPage {
           .borderRadius(16)
           .backgroundColor('#F6E5D2')
           .onClick(() => {
-            this.reduceItem(item)
+            this.updateItem(item, 'reduce')
           })
 
           Text(item.count.toString())
@@ -425,7 +365,7 @@ struct CartPage {
           .borderRadius(16)
           .backgroundColor('#8B5E3C')
           .onClick(() => {
-            this.addItem(item)
+            this.updateItem(item, 'add')
           })
         }
         .width('100%')

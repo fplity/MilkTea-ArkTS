@@ -304,6 +304,36 @@ export function getProductById(id: number): ProductInfo | undefined {
   return productList.find((item) => item.id === id)
 }
 
+// 按 id 获取商品，找不到时回到首个商品，避免页面重复写兜底逻辑
+export function getProductByIdOrFirst(id: number): ProductInfo {
+  const product: ProductInfo | undefined = getProductById(id)
+  return product !== undefined ? product : productList[0]
+}
+
+// 按 id 列表获取商品，自动跳过不存在的 id
+export function getProductsByIds(ids: number[]): ProductInfo[] {
+  const result: ProductInfo[] = []
+
+  ids.forEach((id: number) => {
+    const product: ProductInfo | undefined = getProductById(id)
+
+    if (product !== undefined) {
+      result.push(product)
+    }
+  })
+
+  return result
+}
+
+// 将分类编码转成中文分类；如果本身就是中文分类则原样返回
+export function getCategoryName(category: string): string {
+  const product: ProductInfo | undefined = productList.find(
+    (item: ProductInfo) => item.categoryCode === category
+  )
+
+  return product !== undefined ? product.category : category
+}
+
 // 按类别（中文或英文编码）获取商品列表
 export function getProductsByCategory(category: string): ProductInfo[] {
   return productList.filter(
