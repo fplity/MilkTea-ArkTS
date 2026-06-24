@@ -4,9 +4,15 @@ import { ProductInfo, getProductByIdOrFirst } from '../common/ProductData'
 import {
   addCartItem,
   CartItemInfo,
-  CartTotal,
-  getCartTotal as calcCartTotal,
-  getSpecText as buildSpecText
+  DEFAULT_SUGAR,
+  DEFAULT_TEMPERATURE,
+  getDefaultSpec,
+  getSpecText as buildSpecText,
+  isDessertCategory,
+  refreshCartState,
+  SpecInfo,
+  sugarList,
+  temperatureList
 } from '../common/CartUtils'
 import { showToast } from '../common/AppToast'
 
@@ -19,15 +25,12 @@ interface DetailParams {
 struct DetailPage {
   @State productId: number = 1
   @State count: number = 1
-  @State selectedTemperature: string = '正常冰'
-  @State selectedSugar: string = '正常糖'
+  @State selectedTemperature: string = DEFAULT_TEMPERATURE
+  @State selectedSugar: string = DEFAULT_SUGAR
 
   @StorageLink('cartCount') cartCount: number = 0
   @StorageLink('cartTotal') cartTotal: number = 0
   @StorageLink('cartItems') cartItems: CartItemInfo[] = []
-
-  private temperatureList: string[] = ['正常冰', '少冰', '去冰', '常温', '热']
-  private sugarList: string[] = ['正常糖', '七分糖', '五分糖', '三分糖', '无糖']
 
   aboutToAppear(): void {
     const params = router.getParams() as DetailParams
@@ -36,7 +39,7 @@ struct DetailPage {
     }
 
     this.resetSpec()
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
   }
 
   private getProduct(): ProductInfo {
@@ -54,15 +57,9 @@ struct DetailPage {
   }
 
   private resetSpec(): void {
-    const product: ProductInfo = this.getProduct()
-
-    if (product.category === '甜品') {
-      this.selectedTemperature = '默认'
-      this.selectedSugar = '默认'
-    } else {
-      this.selectedTemperature = '正常冰'
-      this.selectedSugar = '正常糖'
-    }
+    const spec = getDefaultSpec(this.getProduct().category)
+    this.selectedTemperature = spec.temperature
+    this.selectedSugar = spec.sugar
   }
 
   private getSelectedSpecText(): string {
@@ -81,20 +78,14 @@ struct DetailPage {
     }
   }
 
-  private refreshCartMoney(): void {
-    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
-
-    this.cartCount = cartTotalInfo.count
-    this.cartTotal = cartTotalInfo.total
-  }
-
   private addCurrentSpecToCart(): void {
     const product: ProductInfo = this.getProduct()
-    const finalTemperature: string = product.category === '甜品' ? '默认' : this.selectedTemperature
-    const finalSugar: string = product.category === '甜品' ? '默认' : this.selectedSugar
+    const spec: SpecInfo = isDessertCategory(product.category)
+      ? getDefaultSpec(product.category)
+      : { temperature: this.selectedTemperature, sugar: this.selectedSugar }
 
-    this.cartItems = addCartItem(this.cartItems, product.id, finalTemperature, finalSugar, this.count)
-    this.refreshCartMoney()
+    this.cartItems = addCartItem(this.cartItems, product.id, spec.temperature, spec.sugar, this.count)
+    refreshCartState(this, this.cartItems)
   }
 
   private addToCart(): void {
@@ -336,7 +327,7 @@ struct DetailPage {
         .fontColor('#2E2118')
         .width('100%')
 
-      if (this.getProduct().category !== '甜品') {
+      if (!isDessertCategory(this.getProduct().category)) {
         Text('温度')
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
@@ -345,7 +336,7 @@ struct DetailPage {
           .width('100%')
 
         Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.temperatureList, (item: string) => {
+          ForEach(temperatureList, (item: string) => {
             this.SpecChip(item, 'temperature')
           }, (item: string) => item)
         }
@@ -360,7 +351,7 @@ struct DetailPage {
           .width('100%')
 
         Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.sugarList, (item: string) => {
+          ForEach(sugarList, (item: string) => {
             this.SpecChip(item, 'sugar')
           }, (item: string) => item)
         }

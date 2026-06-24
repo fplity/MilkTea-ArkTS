@@ -4,10 +4,10 @@ import { StoreInfo, getStoreByIdOrFirst } from '../common/StoreData'
 import {
   CartItemInfo,
   CartProductInfo,
-  CartTotal,
+  getCartProductKey,
   getCartProducts as buildCartProducts,
-  getCartTotal as calcCartTotal,
-  getSpecText as buildSpecText
+  getSpecText as buildSpecText,
+  refreshCartState
 } from '../common/CartUtils'
 import { PaidOrderInfo } from '../common/OrderModel'
 import { showToast } from '../common/AppToast'
@@ -42,7 +42,7 @@ struct OrderPage {
 
   aboutToAppear(): void {
     this.syncOrderParams()
-    this.refreshOrderMoney()
+    refreshCartState(this, this.cartItems)
     this.orderNo = 'MT' + Date.now().toString()
   }
 
@@ -120,13 +120,6 @@ struct OrderPage {
 
   private getOrderProducts(): CartProductInfo[] {
     return buildCartProducts(this.cartItems)
-  }
-
-  private refreshOrderMoney(): void {
-    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
-
-    this.cartCount = cartTotalInfo.count
-    this.cartTotal = cartTotalInfo.total
   }
 
   private getRealCouponMoney(): number {
@@ -240,7 +233,7 @@ struct OrderPage {
 
             ForEach(this.getOrderProducts(), (item: CartProductInfo) => {
               this.OrderProductCard(item)
-            }, (item: CartProductInfo) => item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString())
+            }, (item: CartProductInfo) => getCartProductKey(item))
 
             this.RemarkCard()
             this.PayWayCard()

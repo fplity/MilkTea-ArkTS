@@ -3,12 +3,11 @@ import { AppTopBar } from '../common/AppTopBar'
 import {
   CartItemInfo,
   CartProductInfo,
-  CartTotal,
   deleteCartItem as removeCartItem,
   getCartProductKey,
   getCartProducts as buildCartProducts,
-  getCartTotal as calcCartTotal,
   getSpecText as buildSpecText,
+  refreshCartState,
   updateCartItemCount
 } from '../common/CartUtils'
 import { showToast } from '../common/AppToast'
@@ -22,7 +21,7 @@ struct CartPage {
   @StorageLink('cartItems') cartItems: CartItemInfo[] = []
 
   aboutToAppear(): void {
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
   }
 
   private goMenu(): void {
@@ -35,21 +34,14 @@ struct CartPage {
     return buildCartProducts(this.cartItems)
   }
 
-  private refreshCartMoney(): void {
-    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
-
-    this.cartCount = cartTotalInfo.count
-    this.cartTotal = cartTotalInfo.total
-  }
-
   private updateItem(item: CartProductInfo, type: string): void {
     this.cartItems = updateCartItemCount(this.cartItems, item, type)
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
   }
 
   private deleteItem(item: CartProductInfo): void {
     this.cartItems = removeCartItem(this.cartItems, item)
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
 
     showToast(item.name + ' 已删除')
   }

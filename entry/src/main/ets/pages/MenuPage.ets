@@ -13,14 +13,19 @@ import {
   addCartItem,
   CartItemInfo,
   CartProductInfo,
-  CartTotal,
+  DEFAULT_SUGAR,
+  DEFAULT_TEMPERATURE,
   deleteCartItem as removeCartItem,
+  getDefaultSpec,
   getCartProductKey,
   getCartProducts as buildCartProducts,
-  getCartTotal as calcCartTotal,
   getProductTotalCount as calcProductTotalCount,
+  refreshCartState,
   updateCartItemCount,
-  getSpecText
+  getSpecText,
+  isDessertCategory,
+  sugarList,
+  temperatureList
 } from '../common/CartUtils'
 import { showToast } from '../common/AppToast'
 
@@ -41,8 +46,8 @@ struct MenuPage {
   @State orderPanelCollapsed: boolean = false
   @State selectedProductId: number = 1
   @State selectedCount: number = 1
-  @State selectedTemperature: string = '正常冰'
-  @State selectedSugar: string = '正常糖'
+  @State selectedTemperature: string = DEFAULT_TEMPERATURE
+  @State selectedSugar: string = DEFAULT_SUGAR
 
   @StorageLink('cartCount') cartCount: number = 0
   @StorageLink('cartTotal') cartTotal: number = 0
@@ -52,9 +57,6 @@ struct MenuPage {
   @StorageLink('selectedStoreId') selectedStoreId: number = 1
   @StorageLink('deliveryAddress') deliveryAddress: string = ''
   @StorageLink('deliveryStoreId') deliveryStoreId: number = 1
-
-  private temperatureList: string[] = ['正常冰', '少冰', '去冰', '常温', '热']
-  private sugarList: string[] = ['正常糖', '七分糖', '五分糖', '三分糖', '无糖']
 
   aboutToAppear(): void {
     const params = router.getParams() as MenuParams
@@ -74,7 +76,7 @@ struct MenuPage {
     }
 
     this.deliveryStoreId = getNearestStore().id
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
   }
 
   private getCurrentProducts(): ProductInfo[] {
@@ -104,17 +106,6 @@ struct MenuPage {
   private getSelectedSpecText(): string {
     const product = this.getSelectedProduct()
     return getSpecText(product.category, this.selectedTemperature, this.selectedSugar)
-  }
-
-  private refreshCartMoney(): void {
-    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
-
-    this.cartCount = cartTotalInfo.count
-    this.cartTotal = cartTotalInfo.total
-  }
-
-  private isDessert(item: ProductInfo): boolean {
-    return item.category === '甜品'
   }
 
   private getProductTotalCount(id: number): number {
@@ -169,14 +160,9 @@ struct MenuPage {
     this.orderPanelCollapsed = true
     this.selectedProductId = item.id
     this.selectedCount = 1
-
-    if (this.isDessert(item)) {
-      this.selectedTemperature = '默认'
-      this.selectedSugar = '默认'
-    } else {
-      this.selectedTemperature = '正常冰'
-      this.selectedSugar = '正常糖'
-    }
+    const spec = getDefaultSpec(item.category)
+    this.selectedTemperature = spec.temperature
+    this.selectedSugar = spec.sugar
 
     this.showSpecSheet = true
   }
@@ -194,7 +180,7 @@ struct MenuPage {
       this.selectedSugar,
       this.selectedCount
     )
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
     this.showSpecSheet = false
     this.orderPanelCollapsed = true
 
@@ -203,12 +189,12 @@ struct MenuPage {
 
   private updateCartItem(item: CartProductInfo, type: string): void {
     this.cartItems = updateCartItemCount(this.cartItems, item, type)
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
   }
 
   private deleteCartItem(item: CartProductInfo): void {
     this.cartItems = removeCartItem(this.cartItems, item)
-    this.refreshCartMoney()
+    refreshCartState(this, this.cartItems)
 
     showToast(item.name + ' 已删除')
   }
@@ -1046,7 +1032,7 @@ struct MenuPage {
 
       this.SpecProductCard()
 
-      if (this.getSelectedProduct().category !== '甜品') {
+      if (!isDessertCategory(this.getSelectedProduct().category)) {
         this.SpecGroup('温度', 'temperature')
         this.SpecGroup('糖度', 'sugar')
       } else {
@@ -1142,15 +1128,9 @@ struct MenuPage {
       .width('100%')
 
     Flex({ wrap: FlexWrap.Wrap }) {
-      if (type === 'temperature') {
-        ForEach(this.temperatureList, (item: string) => {
-          this.SpecChip(item, type)
-        }, (item: string) => item)
-      } else {
-        ForEach(this.sugarList, (item: string) => {
-          this.SpecChip(item, type)
-        }, (item: string) => item)
-      }
+      ForEach(type === 'temperature' ? temperatureList : sugarList, (item: string) => {
+        this.SpecChip(item, type)
+      }, (item: string) => item)
     }
     .width('100%')
     .margin({ top: 10 })

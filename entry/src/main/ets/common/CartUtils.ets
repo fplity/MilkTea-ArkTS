@@ -1,5 +1,12 @@
 import { ProductInfo, getProductById } from './ProductData'
 
+export const DESSERT_CATEGORY: string = '甜品'
+export const DEFAULT_SPEC: string = '默认'
+export const DEFAULT_TEMPERATURE: string = '正常冰'
+export const DEFAULT_SUGAR: string = '正常糖'
+export const temperatureList: string[] = [DEFAULT_TEMPERATURE, '少冰', '去冰', '常温', '热']
+export const sugarList: string[] = [DEFAULT_SUGAR, '七分糖', '五分糖', '三分糖', '无糖']
+
 export interface CartItemInfo {
   id: number
   count: number
@@ -16,6 +23,16 @@ export interface CartProductInfo extends ProductInfo {
 export interface CartTotal {
   count: number
   total: number
+}
+
+export interface SpecInfo {
+  temperature: string
+  sugar: string
+}
+
+export interface CartState {
+  cartCount: number
+  cartTotal: number
 }
 
 function buildCartItem(id: number, count: number, temperature: string, sugar: string): CartItemInfo {
@@ -48,16 +65,18 @@ export function getCartProducts(cartItems: CartItemInfo[]): CartProductInfo[] {
 }
 
 export function getCartTotal(cartItems: CartItemInfo[]): CartTotal {
-  let totalCount: number = 0
-  let totalMoney: number = 0
-  cartItems.forEach((cartItem: CartItemInfo) => {
-    const product: ProductInfo | undefined = getProductById(cartItem.id)
-    if (product !== undefined && cartItem.count > 0) {
-      totalCount += cartItem.count
-      totalMoney += product.price * cartItem.count
-    }
+  const total: CartTotal = { count: 0, total: 0 }
+  getCartProducts(cartItems).forEach((item: CartProductInfo) => {
+    total.count += item.count
+    total.total += item.price * item.count
   })
-  return { count: totalCount, total: totalMoney }
+  return total
+}
+
+export function refreshCartState(state: CartState, cartItems: CartItemInfo[]): void {
+  const total: CartTotal = getCartTotal(cartItems)
+  state.cartCount = total.count
+  state.cartTotal = total.total
 }
 
 function isSameCartSpec(cartItem: CartItemInfo, id: number, temperature: string, sugar: string): boolean {
@@ -71,7 +90,7 @@ export function isSameCartItem(cartItem: CartItemInfo, item: CartProductInfo): b
 }
 
 export function getCartProductKey(item: CartProductInfo): string {
-  return item.id.toString() + '_' + item.temperature + '_' + item.sugar + '_' + item.count.toString()
+  return `${item.id}_${item.temperature}_${item.sugar}_${item.count}`
 }
 
 export function getProductTotalCount(cartItems: CartItemInfo[], id: number): number {
@@ -93,23 +112,13 @@ export function addCartItem(
   sugar: string,
   count: number
 ): CartItemInfo[] {
-  let hasItem: boolean = false
-  const newCartItems: CartItemInfo[] = []
-
-  cartItems.forEach((cartItem: CartItemInfo) => {
-    if (isSameCartSpec(cartItem, id, temperature, sugar)) {
-      hasItem = true
-      newCartItems.push(buildCartItem(cartItem.id, cartItem.count + count, cartItem.temperature, cartItem.sugar))
-    } else {
-      newCartItems.push(cartItem)
-    }
-  })
-
-  if (!hasItem) {
-    newCartItems.push(buildCartItem(id, count, temperature, sugar))
+  if (!cartItems.some((cartItem: CartItemInfo) => isSameCartSpec(cartItem, id, temperature, sugar))) {
+    return cartItems.concat(buildCartItem(id, count, temperature, sugar))
   }
 
-  return newCartItems
+  return cartItems.map((cartItem: CartItemInfo) => isSameCartSpec(cartItem, id, temperature, sugar)
+    ? buildCartItem(cartItem.id, cartItem.count + count, cartItem.temperature, cartItem.sugar)
+    : cartItem)
 }
 
 export function updateCartItemCount(cartItems: CartItemInfo[], item: CartProductInfo, type: string): CartItemInfo[] {
@@ -135,8 +144,15 @@ export function deleteCartItem(cartItems: CartItemInfo[], item: CartProductInfo)
 }
 
 export function getSpecText(category: string, temperature: string, sugar: string): string {
-  if (category === '甜品') {
-    return '默认规格'
-  }
-  return `${temperature} / ${sugar}`
+  return isDessertCategory(category) ? '默认规格' : `${temperature} / ${sugar}`
+}
+
+export function isDessertCategory(category: string): boolean {
+  return category === DESSERT_CATEGORY
+}
+
+export function getDefaultSpec(category: string): SpecInfo {
+  return isDessertCategory(category)
+    ? { temperature: DEFAULT_SPEC, sugar: DEFAULT_SPEC }
+    : { temperature: DEFAULT_TEMPERATURE, sugar: DEFAULT_SUGAR }
 }
