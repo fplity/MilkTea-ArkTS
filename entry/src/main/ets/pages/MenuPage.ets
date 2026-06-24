@@ -2,7 +2,14 @@ import router from '@ohos.router'
 import promptAction from '@ohos.promptAction'
 import { ProductInfo, productList, getProductById, getProductsByCategory } from '../common/ProductData'
 import { StoreInfo, storeList, getStoreById, getNearestStore } from '../common/StoreData'
-import { CartItemInfo, CartProductInfo, CartTotal, getCartProducts as buildCartProducts, getCartTotal as calcCartTotal } from '../common/CartUtils'
+import {
+  CartItemInfo,
+  CartProductInfo,
+  CartTotal,
+  getCartProducts as buildCartProducts,
+  getCartTotal as calcCartTotal,
+  getSpecText
+} from '../common/CartUtils'
 
 interface MenuParams {
   category?: string
@@ -50,15 +57,7 @@ struct MenuPage {
     const params = router.getParams() as MenuParams
 
     if (params && params.category !== undefined) {
-      if (params.category === 'milkTea') {
-        this.currentCategory = '奶茶'
-      } else if (params.category === 'coffee') {
-        this.currentCategory = '咖啡'
-      } else if (params.category === 'dessert') {
-        this.currentCategory = '甜品'
-      } else if (params.category === 'fruitTea') {
-        this.currentCategory = '果茶'
-      }
+      this.currentCategory = this.toCategoryName(params.category)
     }
 
     if (params && params.productId !== undefined) {
@@ -72,6 +71,26 @@ struct MenuPage {
 
     this.deliveryStoreId = getNearestStore().id
     this.refreshCartMoney()
+  }
+
+  private toCategoryName(category: string): string {
+    if (category === 'milkTea') {
+      return '奶茶'
+    }
+
+    if (category === 'coffee') {
+      return '咖啡'
+    }
+
+    if (category === 'dessert') {
+      return '甜品'
+    }
+
+    if (category === 'fruitTea') {
+      return '果茶'
+    }
+
+    return category
   }
 
   private getCurrentProducts(): ProductInfo[] {
@@ -116,6 +135,56 @@ struct MenuPage {
     return '填写配送地址'
   }
 
+  private getCartProducts(): CartProductInfo[] {
+    return buildCartProducts(this.cartItems)
+  }
+
+  private getSelectedSpecText(): string {
+    const product = this.getSelectedProduct()
+    return getSpecText(product.category, this.selectedTemperature, this.selectedSugar)
+  }
+
+  private showToast(message: string): void {
+    promptAction.showToast({
+      message: message
+    })
+  }
+
+  private refreshCartMoney(): void {
+    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
+
+    this.cartCount = cartTotalInfo.count
+    this.cartTotal = cartTotalInfo.total
+  }
+
+  private isDessert(item: ProductInfo): boolean {
+    return item.category === '甜品'
+  }
+
+  private isSameCartItem(cartItem: CartItemInfo, item: CartProductInfo): boolean {
+    return cartItem.id === item.id &&
+      cartItem.temperature === item.temperature &&
+      cartItem.sugar === item.sugar
+  }
+
+  private isSameSelectedSpec(cartItem: CartItemInfo, product: ProductInfo): boolean {
+    return cartItem.id === product.id &&
+      cartItem.temperature === this.selectedTemperature &&
+      cartItem.sugar === this.selectedSugar
+  }
+
+  private getProductTotalCount(id: number): number {
+    let count: number = 0
+
+    this.cartItems.forEach((item: CartItemInfo) => {
+      if (item.id === id && item.count > 0) {
+        count += item.count
+      }
+    })
+
+    return count
+  }
+
   private changeOrderType(type: string): void {
     this.orderType = type
 
@@ -126,22 +195,24 @@ struct MenuPage {
       this.orderPanelCollapsed = true
     }
   }
+
   private chooseStore(item: StoreInfo): void {
     this.selectedStoreId = item.id
-    this.orderPanelCollapsed = true
-
-    promptAction.showToast({
-      message: '已选择 ' + item.name
-    })
-  }
-
-  private closeStoreSheet(): void {
     this.showStoreSheet = false
     this.orderPanelCollapsed = true
+
+    this.showToast('已选择 ' + item.name)
   }
 
-  private isDessert(item: ProductInfo): boolean {
-    return item.category === '甜品'
+  private closeSheet(type: string): void {
+    if (type === 'cart') {
+      this.showCartSheet = false
+    } else if (type === 'spec') {
+      this.showSpecSheet = false
+    } else if (type === 'store') {
+      this.showStoreSheet = false
+      this.orderPanelCollapsed = true
+    }
   }
 
   private goHome(): void {
@@ -160,9 +231,7 @@ struct MenuPage {
         id: item.id
       }
     }).catch(() => {
-      promptAction.showToast({
-        message: '详情页跳转失败，请检查 DetailPage 是否注册'
-      })
+      this.showToast('详情页跳转失败，请检查 DetailPage 是否注册')
     })
   }
 
@@ -182,58 +251,15 @@ struct MenuPage {
     this.showSpecSheet = true
   }
 
-  private closeSpecSheet(): void {
-    this.showSpecSheet = false
-  }
+  private changeSelectedCount(type: string): void {
+    if (type === 'add') {
+      this.selectedCount++
+      return
+    }
 
-  private addSelectedCount(): void {
-    this.selectedCount++
-  }
-
-  private reduceSelectedCount(): void {
     if (this.selectedCount > 1) {
       this.selectedCount--
     }
-  }
-
-  private getProductTotalCount(id: number): number {
-    let count: number = 0
-
-    this.cartItems.forEach((item: CartItemInfo) => {
-      if (item.id === id && item.count > 0) {
-        count += item.count
-      }
-    })
-
-    return count
-  }
-
-  private getSpecText(item: CartProductInfo): string {
-    if (item.category === '甜品') {
-      return '默认规格'
-    }
-    return item.temperature + ' / ' + item.sugar
-  }
-
-  private getSelectedSpecText(): string {
-    const product = this.getSelectedProduct()
-
-    if (product.category === '甜品') {
-      return '默认规格'
-    }
-
-    return this.selectedTemperature + ' / ' + this.selectedSugar
-  }
-
-  private getCartProducts(): CartProductInfo[] {
-    return buildCartProducts(this.cartItems)
-  }
-
-  private refreshCartMoney(): void {
-    const cartTotalInfo: CartTotal = calcCartTotal(this.cartItems)
-
-    this.cartCount = cartTotalInfo.count
-    this.cartTotal = cartTotalInfo.total
   }
 
   private addCartWithSpec(): void {
@@ -242,11 +268,7 @@ struct MenuPage {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((item: CartItemInfo) => {
-      if (
-        item.id === product.id &&
-          item.temperature === this.selectedTemperature &&
-          item.sugar === this.selectedSugar
-      ) {
+      if (this.isSameSelectedSpec(item, product)) {
         hasItem = true
         newCartItems.push({
           id: item.id,
@@ -273,45 +295,22 @@ struct MenuPage {
     this.showSpecSheet = false
     this.orderPanelCollapsed = true
 
-    promptAction.showToast({
-      message: product.name + ' 已加入购物车'
-    })
+    this.showToast(product.name + ' 已加入购物车')
   }
 
-  private addCartItem(item: CartProductInfo): void {
+  private updateCartItem(item: CartProductInfo, type: string): void {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (
-        cartItem.id === item.id &&
-          cartItem.temperature === item.temperature &&
-          cartItem.sugar === item.sugar
-      ) {
-        newCartItems.push({
-          id: cartItem.id,
-          count: cartItem.count + 1,
-          temperature: cartItem.temperature,
-          sugar: cartItem.sugar
-        })
-      } else {
-        newCartItems.push(cartItem)
-      }
-    })
-
-    this.cartItems = newCartItems
-    this.refreshCartMoney()
-  }
-
-  private reduceCartItem(item: CartProductInfo): void {
-    const newCartItems: CartItemInfo[] = []
-
-    this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (
-        cartItem.id === item.id &&
-          cartItem.temperature === item.temperature &&
-          cartItem.sugar === item.sugar
-      ) {
-        if (cartItem.count > 1) {
+      if (this.isSameCartItem(cartItem, item)) {
+        if (type === 'add') {
+          newCartItems.push({
+            id: cartItem.id,
+            count: cartItem.count + 1,
+            temperature: cartItem.temperature,
+            sugar: cartItem.sugar
+          })
+        } else if (cartItem.count > 1) {
           newCartItems.push({
             id: cartItem.id,
             count: cartItem.count - 1,
@@ -332,11 +331,7 @@ struct MenuPage {
     const newCartItems: CartItemInfo[] = []
 
     this.cartItems.forEach((cartItem: CartItemInfo) => {
-      if (
-        cartItem.id !== item.id ||
-          cartItem.temperature !== item.temperature ||
-          cartItem.sugar !== item.sugar
-      ) {
+      if (!this.isSameCartItem(cartItem, item)) {
         newCartItems.push(cartItem)
       }
     })
@@ -344,16 +339,12 @@ struct MenuPage {
     this.cartItems = newCartItems
     this.refreshCartMoney()
 
-    promptAction.showToast({
-      message: item.name + ' 已删除'
-    })
+    this.showToast(item.name + ' 已删除')
   }
 
   private clearCart(): void {
     if (this.cartCount === 0) {
-      promptAction.showToast({
-        message: '购物车已经是空的'
-      })
+      this.showToast('购物车已经是空的')
       return
     }
 
@@ -361,9 +352,7 @@ struct MenuPage {
     this.cartCount = 0
     this.cartTotal = 0
 
-    promptAction.showToast({
-      message: '购物车已清空'
-    })
+    this.showToast('购物车已清空')
   }
 
   private getCartSheetHeight(): string {
@@ -388,18 +377,42 @@ struct MenuPage {
     return '75%'
   }
 
+  private isSpecSelected(title: string, type: string): boolean {
+    if (type === 'temperature') {
+      return this.selectedTemperature === title
+    }
+
+    return this.selectedSugar === title
+  }
+
+  private setSpecValue(title: string, type: string): void {
+    if (type === 'temperature') {
+      this.selectedTemperature = title
+    } else {
+      this.selectedSugar = title
+    }
+  }
+
+  private getOrderTypeButtonBg(title: string, compact: boolean): string {
+    if (this.orderType === title) {
+      return '#8B5E3C'
+    }
+
+    if (compact) {
+      return '#00FFFFFF'
+    }
+
+    return '#F6E5D2'
+  }
+
   private checkout(): void {
     if (this.cartCount === 0) {
-      promptAction.showToast({
-        message: '请先选择商品'
-      })
+      this.showToast('请先选择商品')
       return
     }
 
     if (this.orderType === '外卖' && this.deliveryAddress.trim().length === 0) {
-      promptAction.showToast({
-        message: '请先填写配送地址'
-      })
+      this.showToast('请先填写配送地址')
       return
     }
 
@@ -439,15 +452,15 @@ struct MenuPage {
       .backgroundColor('#FFF7EC')
 
       if (this.showCartSheet) {
-        this.CartSheetMask()
+        this.SheetMask('cart')
       }
 
       if (this.showSpecSheet) {
-        this.SpecSheetMask()
+        this.SheetMask('spec')
       }
 
       if (this.showStoreSheet) {
-        this.StoreSheetMask()
+        this.SheetMask('store')
       }
     }
     .width('100%')
@@ -518,8 +531,8 @@ struct MenuPage {
         this.CollapsedOrderPanel()
       } else {
         Row() {
-          this.OrderTypeButton('自取')
-          this.OrderTypeButton('外卖')
+          this.OrderTypeButton('自取', false)
+          this.OrderTypeButton('外卖', false)
         }
         .width('100%')
         .height(44)
@@ -542,8 +555,8 @@ struct MenuPage {
     Column() {
       Row() {
         Row() {
-          this.CompactOrderTypeButton('自取')
-          this.CompactOrderTypeButton('外卖')
+          this.OrderTypeButton('自取', true)
+          this.OrderTypeButton('外卖', true)
         }
         .width(126)
         .height(36)
@@ -613,34 +626,19 @@ struct MenuPage {
     .padding({ left: 18, right: 18, top: 4, bottom: 6 })
     .backgroundColor('#FFF7EC')
   }
-  @Builder
-  CompactOrderTypeButton(title: string) {
-    Text(title)
-      .fontSize(14)
-      .fontWeight(this.orderType === title ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.orderType === title ? '#FFFFFF' : '#8B5E3C')
-      .textAlign(TextAlign.Center)
-      .layoutWeight(1)
-      .height(30)
-      .backgroundColor(this.orderType === title ? '#8B5E3C' : '#00FFFFFF')
-      .borderRadius(15)
-      .onClick(() => {
-        this.changeOrderType(title)
-      })
-  }
 
   @Builder
-  OrderTypeButton(title: string) {
+  OrderTypeButton(title: string, compact: boolean) {
     Text(title)
-      .fontSize(16)
+      .fontSize(compact ? 14 : 16)
       .fontWeight(this.orderType === title ? FontWeight.Bold : FontWeight.Normal)
       .fontColor(this.orderType === title ? '#FFFFFF' : '#8B5E3C')
       .textAlign(TextAlign.Center)
       .layoutWeight(1)
-      .height(40)
-      .backgroundColor(this.orderType === title ? '#8B5E3C' : '#F6E5D2')
-      .borderRadius(20)
-      .margin({ right: title === '自取' ? 10 : 0 })
+      .height(compact ? 30 : 40)
+      .backgroundColor(this.getOrderTypeButtonBg(title, compact))
+      .borderRadius(compact ? 15 : 20)
+      .margin({ right: !compact && title === '自取' ? 10 : 0 })
       .onClick(() => {
         this.changeOrderType(title)
       })
@@ -1066,15 +1064,21 @@ struct MenuPage {
   }
 
   @Builder
-  StoreSheetMask() {
+  SheetMask(type: string) {
     Column() {
       Blank()
         .layoutWeight(1)
         .onClick(() => {
-          this.closeStoreSheet()
+          this.closeSheet(type)
         })
 
-      this.StoreSheet()
+      if (type === 'cart') {
+        this.CartSheet()
+      } else if (type === 'spec') {
+        this.SpecSheet()
+      } else {
+        this.StoreSheet()
+      }
     }
     .width('100%')
     .height('100%')
@@ -1082,24 +1086,42 @@ struct MenuPage {
   }
 
   @Builder
-  StoreSheet() {
-    Column() {
-      Row() {
-        Text('选择自取门店')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .layoutWeight(1)
+  SheetHeader(title: string, type: string) {
+    Row() {
+      Text(title)
+        .fontSize(type === 'spec' ? 23 : 24)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#2E2118')
+        .layoutWeight(1)
 
-        Text('×')
-          .fontSize(26)
-          .fontColor('#8B6F58')
+      if (type === 'cart' && this.cartCount > 0) {
+        Text('清空')
+          .fontSize(14)
+          .fontColor('#A36A3C')
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor('#F6E5D2')
+          .borderRadius(15)
+          .margin({ right: 12 })
           .onClick(() => {
-            this.closeStoreSheet()
+            this.clearCart()
           })
       }
-      .width('100%')
-      .margin({ bottom: 14 })
+
+      Text('×')
+        .fontSize(26)
+        .fontColor('#8B6F58')
+        .onClick(() => {
+          this.closeSheet(type)
+        })
+    }
+    .width('100%')
+    .margin({ bottom: 14 })
+  }
+
+  @Builder
+  StoreSheet() {
+    Column() {
+      this.SheetHeader('选择自取门店', 'store')
 
       Scroll() {
         Column() {
@@ -1119,41 +1141,37 @@ struct MenuPage {
   }
 
   @Builder
+  StoreRadio(item: StoreInfo) {
+    Stack({ alignContent: Alignment.Center }) {
+      Circle()
+        .width(20)
+        .height(20)
+        .fill(this.selectedStoreId === item.id ? '#F7E7D6' : '#FFFFFF')
+        .border({
+          width: 1,
+          color: this.selectedStoreId === item.id ? '#8B5E3C' : '#C9B8A6'
+        })
+
+      if (this.selectedStoreId === item.id) {
+        Circle()
+          .width(10)
+          .height(10)
+          .fill('#8B5E3C')
+      }
+    }
+    .width(30)
+    .height(30)
+    .margin({ right: 8 })
+    .onClick(() => {
+      this.chooseStore(item)
+    })
+  }
+
+  @Builder
   StoreItem(item: StoreInfo) {
     Column() {
       Row() {
-        Stack({ alignContent: Alignment.Center }) {
-          if (this.selectedStoreId === item.id) {
-            Circle()
-              .width(20)
-              .height(20)
-              .fill('#F7E7D6')
-              .border({
-                width: 1,
-                color: '#8B5E3C'
-              })
-
-            Circle()
-              .width(10)
-              .height(10)
-              .fill('#8B5E3C')
-          } else {
-            Circle()
-              .width(20)
-              .height(20)
-              .fill('#FFFFFF')
-              .border({
-                width: 1,
-                color: '#C9B8A6'
-              })
-          }
-        }
-        .width(30)
-        .height(30)
-        .margin({ right: 8 })
-        .onClick(() => {
-          this.chooseStore(item)
-        })
+        this.StoreRadio(item)
 
         Column() {
           Row() {
@@ -1230,119 +1248,15 @@ struct MenuPage {
   }
 
   @Builder
-  SpecSheetMask() {
-    Column() {
-      Blank()
-        .layoutWeight(1)
-        .onClick(() => {
-          this.closeSpecSheet()
-        })
-
-      this.SpecSheet()
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#66000000')
-  }
-
-  @Builder
   SpecSheet() {
     Column() {
-      Row() {
-        Text('选择规格')
-          .fontSize(23)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .layoutWeight(1)
+      this.SheetHeader('选择规格', 'spec')
 
-        Text('×')
-          .fontSize(26)
-          .fontColor('#8B6F58')
-          .onClick(() => {
-            this.closeSpecSheet()
-          })
-      }
-      .width('100%')
-      .margin({ bottom: 16 })
-
-      Row() {
-        Image(this.getSelectedProduct().image)
-          .width(88)
-          .height(88)
-          .objectFit(ImageFit.Cover)
-          .borderRadius(20)
-
-        Column() {
-          Text(this.getSelectedProduct().name)
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#2E2118')
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          Text(this.getSelectedProduct().desc)
-            .fontSize(13)
-            .fontColor('#9A7B60')
-            .margin({ top: 6 })
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          Row() {
-            Text('￥' + this.getSelectedProduct().price.toString())
-              .fontSize(24)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#D35400')
-              .layoutWeight(1)
-
-            Text('查看详情 >')
-              .fontSize(12)
-              .fontColor('#8B5E3C')
-          }
-          .width('100%')
-          .margin({ top: 8 })
-        }
-        .layoutWeight(1)
-        .margin({ left: 14 })
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .padding(14)
-      .backgroundColor('#F8F4EF')
-      .borderRadius(22)
-      .onClick(() => {
-        this.goDetail(this.getSelectedProduct())
-      })
+      this.SpecProductCard()
 
       if (this.getSelectedProduct().category !== '甜品') {
-        Text('温度')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .margin({ top: 18 })
-          .width('100%')
-
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.temperatureList, (item: string) => {
-            this.TemperatureChip(item)
-          }, (item: string) => item)
-        }
-        .width('100%')
-        .margin({ top: 10 })
-
-        Text('糖度')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .margin({ top: 18 })
-          .width('100%')
-
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.sugarList, (item: string) => {
-            this.SugarChip(item)
-          }, (item: string) => item)
-        }
-        .width('100%')
-        .margin({ top: 10 })
+        this.SpecGroup('温度', 'temperature')
+        this.SpecGroup('糖度', 'sugar')
       } else {
         Text('甜品无需选择温度和糖度')
           .fontSize(14)
@@ -1354,57 +1268,7 @@ struct MenuPage {
           .borderRadius(18)
       }
 
-      Row() {
-        Column() {
-          Text('数量')
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#2E2118')
-
-          Text(this.getSelectedSpecText())
-            .fontSize(12)
-            .fontColor('#9A7B60')
-            .margin({ top: 5 })
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        Stack({ alignContent: Alignment.Center }) {
-          Text('－')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#8B5E3C')
-        }
-        .width(34)
-        .height(34)
-        .borderRadius(17)
-        .backgroundColor('#F6E5D2')
-        .onClick(() => {
-          this.reduceSelectedCount()
-        })
-
-        Text(this.selectedCount.toString())
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .margin({ left: 14, right: 14 })
-
-        Stack({ alignContent: Alignment.Center }) {
-          Text('＋')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-        .width(34)
-        .height(34)
-        .borderRadius(17)
-        .backgroundColor('#8B5E3C')
-        .onClick(() => {
-          this.addSelectedCount()
-        })
-      }
-      .width('100%')
-      .margin({ top: 20 })
+      this.SelectedCountRow()
 
       Button('加入购物车')
         .width('100%')
@@ -1426,83 +1290,147 @@ struct MenuPage {
   }
 
   @Builder
-  TemperatureChip(title: string) {
-    Text(title)
-      .fontSize(14)
-      .fontWeight(this.selectedTemperature === title ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.selectedTemperature === title ? '#FFFFFF' : '#6B4F3A')
-      .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-      .margin({ right: 10, bottom: 10 })
-      .backgroundColor(this.selectedTemperature === title ? '#8B5E3C' : '#F6E5D2')
-      .borderRadius(18)
-      .onClick(() => {
-        this.selectedTemperature = title
-      })
-  }
+  SpecProductCard() {
+    Row() {
+      Image(this.getSelectedProduct().image)
+        .width(88)
+        .height(88)
+        .objectFit(ImageFit.Cover)
+        .borderRadius(20)
 
-  @Builder
-  SugarChip(title: string) {
-    Text(title)
-      .fontSize(14)
-      .fontWeight(this.selectedSugar === title ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.selectedSugar === title ? '#FFFFFF' : '#6B4F3A')
-      .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-      .margin({ right: 10, bottom: 10 })
-      .backgroundColor(this.selectedSugar === title ? '#8B5E3C' : '#F6E5D2')
-      .borderRadius(18)
-      .onClick(() => {
-        this.selectedSugar = title
-      })
-  }
+      Column() {
+        Text(this.getSelectedProduct().name)
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2E2118')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-  @Builder
-  CartSheetMask() {
-    Column() {
-      Blank()
-        .layoutWeight(1)
-        .onClick(() => {
-          this.showCartSheet = false
-        })
+        Text(this.getSelectedProduct().desc)
+          .fontSize(13)
+          .fontColor('#9A7B60')
+          .margin({ top: 6 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      this.CartSheet()
+        Row() {
+          Text('￥' + this.getSelectedProduct().price.toString())
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#D35400')
+            .layoutWeight(1)
+
+          Text('查看详情 >')
+            .fontSize(12)
+            .fontColor('#8B5E3C')
+        }
+        .width('100%')
+        .margin({ top: 8 })
+      }
+      .layoutWeight(1)
+      .margin({ left: 14 })
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .height('100%')
-    .backgroundColor('#66000000')
+    .padding(14)
+    .backgroundColor('#F8F4EF')
+    .borderRadius(22)
+    .onClick(() => {
+      this.goDetail(this.getSelectedProduct())
+    })
+  }
+
+  @Builder
+  SpecGroup(title: string, type: string) {
+    Text(title)
+      .fontSize(18)
+      .fontWeight(FontWeight.Bold)
+      .fontColor('#2E2118')
+      .margin({ top: 18 })
+      .width('100%')
+
+    Flex({ wrap: FlexWrap.Wrap }) {
+      if (type === 'temperature') {
+        ForEach(this.temperatureList, (item: string) => {
+          this.SpecChip(item, type)
+        }, (item: string) => item)
+      } else {
+        ForEach(this.sugarList, (item: string) => {
+          this.SpecChip(item, type)
+        }, (item: string) => item)
+      }
+    }
+    .width('100%')
+    .margin({ top: 10 })
+  }
+
+  @Builder
+  SpecChip(title: string, type: string) {
+    Text(title)
+      .fontSize(14)
+      .fontWeight(this.isSpecSelected(title, type) ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.isSpecSelected(title, type) ? '#FFFFFF' : '#6B4F3A')
+      .padding({ left: 16, right: 16, top: 9, bottom: 9 })
+      .margin({ right: 10, bottom: 10 })
+      .backgroundColor(this.isSpecSelected(title, type) ? '#8B5E3C' : '#F6E5D2')
+      .borderRadius(18)
+      .onClick(() => {
+        this.setSpecValue(title, type)
+      })
+  }
+
+  @Builder
+  SelectedCountRow() {
+    Row() {
+      Column() {
+        Text('数量')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2E2118')
+
+        Text(this.getSelectedSpecText())
+          .fontSize(12)
+          .fontColor('#9A7B60')
+          .margin({ top: 5 })
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      this.SelectedCountButton('－', 'reduce')
+
+      Text(this.selectedCount.toString())
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#2E2118')
+        .margin({ left: 14, right: 14 })
+
+      this.SelectedCountButton('＋', 'add')
+    }
+    .width('100%')
+    .margin({ top: 20 })
+  }
+
+  @Builder
+  SelectedCountButton(label: string, type: string) {
+    Stack({ alignContent: Alignment.Center }) {
+      Text(label)
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(type === 'add' ? '#FFFFFF' : '#8B5E3C')
+    }
+    .width(34)
+    .height(34)
+    .borderRadius(17)
+    .backgroundColor(type === 'add' ? '#8B5E3C' : '#F6E5D2')
+    .onClick(() => {
+      this.changeSelectedCount(type)
+    })
   }
 
   @Builder
   CartSheet() {
     Column() {
-      Row() {
-        Text('购物车')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2E2118')
-          .layoutWeight(1)
-
-        if (this.cartCount > 0) {
-          Text('清空')
-            .fontSize(14)
-            .fontColor('#A36A3C')
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor('#F6E5D2')
-            .borderRadius(15)
-            .margin({ right: 12 })
-            .onClick(() => {
-              this.clearCart()
-            })
-        }
-
-        Text('×')
-          .fontSize(26)
-          .fontColor('#8B6F58')
-          .onClick(() => {
-            this.showCartSheet = false
-          })
-      }
-      .width('100%')
-      .margin({ bottom: 14 })
+      this.SheetHeader('购物车', 'cart')
 
       if (this.getCartProducts().length === 0) {
         this.EmptyCartInSheet()
@@ -1577,25 +1505,13 @@ struct MenuPage {
         }
         .width('100%')
 
-        Text(this.getSpecText(item))
+        Text(getSpecText(item.category, item.temperature, item.sugar))
           .fontSize(12)
           .fontColor('#9A7B60')
           .margin({ top: 5 })
 
         Row() {
-          Stack({ alignContent: Alignment.Center }) {
-            Text('－')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#8B5E3C')
-          }
-          .width(30)
-          .height(30)
-          .borderRadius(15)
-          .backgroundColor('#F6E5D2')
-          .onClick(() => {
-            this.reduceCartItem(item)
-          })
+          this.CartCountButton('－', 'reduce', item)
 
           Text(item.count.toString())
             .fontSize(16)
@@ -1603,19 +1519,7 @@ struct MenuPage {
             .fontColor('#2E2118')
             .margin({ left: 12, right: 12 })
 
-          Stack({ alignContent: Alignment.Center }) {
-            Text('＋')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#FFFFFF')
-          }
-          .width(30)
-          .height(30)
-          .borderRadius(15)
-          .backgroundColor('#8B5E3C')
-          .onClick(() => {
-            this.addCartItem(item)
-          })
+          this.CartCountButton('＋', 'add', item)
 
           Blank()
 
@@ -1643,6 +1547,23 @@ struct MenuPage {
       color: '#10000000',
       offsetX: 0,
       offsetY: 3
+    })
+  }
+
+  @Builder
+  CartCountButton(label: string, type: string, item: CartProductInfo) {
+    Stack({ alignContent: Alignment.Center }) {
+      Text(label)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(type === 'add' ? '#FFFFFF' : '#8B5E3C')
+    }
+    .width(30)
+    .height(30)
+    .borderRadius(15)
+    .backgroundColor(type === 'add' ? '#8B5E3C' : '#F6E5D2')
+    .onClick(() => {
+      this.updateCartItem(item, type)
     })
   }
 
